@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/contexts/AuthContext";
 import BottomNav from "@/components/bottom-nav";
 import SplashScreen from "@/components/splash-screen";
 
@@ -34,14 +35,16 @@ export default function RootLayout({
     >
       <body className="min-h-full bg-[var(--background)] text-foreground transition-colors duration-300 flex justify-center items-stretch">
         <ThemeProvider>
-          {/* Global App Load Splash Screen */}
-          <SplashScreen />
-          
-          {/* Centered Mobile-only Device Mock Frame */}
-          <div className="w-full max-w-md min-h-screen bg-[var(--background)] flex flex-col shadow-2xl relative border-x border-brand-light-border dark:border-brand-dark-border pb-16">
-            {children}
-            <BottomNav />
-          </div>
+          <AuthProvider>
+            {/* Global App Load Splash Screen */}
+            <SplashScreen />
+            
+            {/* Centered Mobile-only Device Mock Frame */}
+            <div className="w-full max-w-md min-h-screen bg-[var(--background)] flex flex-col shadow-2xl relative border-x border-brand-light-border dark:border-brand-dark-border pb-16">
+              {children}
+              <BottomNav />
+            </div>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

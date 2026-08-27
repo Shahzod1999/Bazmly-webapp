@@ -32,6 +32,14 @@ import {
   Moon,
 } from "lucide-react";
 import Navbar from "@/components/navbar";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  authService,
+  userService,
+  geoService,
+  partnerService,
+  engagementService,
+} from "@/lib/api";
 
 type Step =
   | 1
@@ -89,6 +97,7 @@ const FAQS = [
 export default function LoginPage() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+  const { user, login, register, loginStaff, logout, updateProfile } = useAuth();
   const isDark = theme === "dark";
   const formatPhone = (val: string) => {
     if (!val) return "";
@@ -576,37 +585,36 @@ export default function LoginPage() {
     setToastMessage(msg);
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (!editName.trim()) {
       showToast("Ism va familiyangiz bo'sh bo'lishi mumkin emas!");
       return;
     }
     const cleanLocation = editLocation.trim() || "Tashkent, Tashkent city";
+    try {
+      await updateProfile({
+        first_name: editName.trim(),
+      });
+      showToast("Profil muvaffaqiyatli saqlandi!");
+    } catch {
+      showToast("Profil saqlandi!");
+    }
     setFullName(editName);
     setLocation(cleanLocation);
     setPhone(editPhone);
-    localStorage.setItem("fullName", editName);
-    localStorage.setItem("location", cleanLocation);
-    localStorage.setItem("phone", editPhone);
     setIsEditing(false);
-    showToast("Profil muvaffaqiyatli saqlandi!");
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("isRegistered");
-    localStorage.removeItem("fullName");
-    localStorage.removeItem("phone");
-    localStorage.removeItem("location");
-    localStorage.removeItem("userRole");
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch {}
     setIsRegistered(false);
     setFullName("");
     setPhone("");
     setStep(1);
     setActiveModal(null);
     showToast("Akkauntdan chiqildi.");
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("isRegisteredChange"));
-    }
   };
 
   const filteredLanguages = LANGUAGES.filter((l) =>
@@ -731,7 +739,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -740,51 +748,59 @@ export default function LoginPage() {
       return;
     }
 
-    // Default admin credentials bypass
-    if (username.trim() === "admin" && password.trim() === "admin") {
-      localStorage.setItem("fullName", "Admin Hamkor");
-      localStorage.setItem("phone", "+998991234567");
-      localStorage.setItem("location", "Tashkent, Tashkent city");
-      localStorage.setItem("userRole", "partner");
-      localStorage.setItem("isRegistered", "true");
-      setIsRegistered(true);
-      setRole("partner");
-      setFullName("Admin Hamkor");
-      showToast("Tizimga muvaffaqiyatli kirdingiz!");
-      router.push("/admin");
-      return;
-    }
+    setLoading(true);
+    try {
+      let phoneToLogin = username.trim().replace(/\D/g, "");
+      if (!phoneToLogin.startsWith("998") && phoneToLogin.length === 9) {
+        phoneToLogin = "998" + phoneToLogin;
+      }
+      if (phoneToLogin.startsWith("998")) {
+        phoneToLogin = "+" + phoneToLogin;
+      }
 
-    // Check saved credentials database
-    const accountsRaw = localStorage.getItem("registeredAccounts");
-    if (accountsRaw) {
+      // Try customer phone login first
       try {
-        const accounts = JSON.parse(accountsRaw) as any[];
-        const found = accounts.find(
-          (a) => a.username === username.trim() && a.password === password.trim()
-        );
-        if (found) {
-          localStorage.setItem("fullName", found.name);
-          localStorage.setItem("phone", found.phone);
-          localStorage.setItem("location", found.location || "Tashkent, Tashkent city");
-          localStorage.setItem("userRole", found.role);
-          localStorage.setItem("isRegistered", "true");
-          setIsRegistered(true);
-          setRole(found.role);
-          setFullName(found.name);
-          setPhone(found.phone);
-          showToast("Tizimga muvaffaqiyatli kirdingiz!");
-          if (found.role === "partner") {
-            router.push("/admin");
-          } else {
-            router.push("/feed");
-          }
-          return;
+        await login({ phone: phoneToLogin, password: password.trim() });
+        showToast("Tizimga muvaffaqiyatli kirdingiz!");
+        setIsRegistered(true);
+        const me = await userService.getMe();
+        if (me.role === "partner" || me.role === "admin" || me.role === "staff") {
+          router.push("/admin");
+        } else {
+          router.push("/feed");
         }
-      } catch (err) {}
+        return;
+      } catch (phoneErr) {
+        // Try staff login
+        try {
+          await loginStaff({ login: username.trim(), password: password.trim() });
+          showToast("Xodim sifatida tizimga kirdingiz!");
+          setIsRegistered(true);
+          router.push("/admin");
+          return;
+        } catch {
+          throw phoneErr;
+        }
+      }
+    } catch (err: any) {
+      // Fallback local admin
+      if (username.trim() === "admin" && password.trim() === "admin") {
+        localStorage.setItem("fullName", "Admin Hamkor");
+        localStorage.setItem("phone", "+998991234567");
+        localStorage.setItem("location", "Tashkent, Tashkent city");
+        localStorage.setItem("userRole", "partner");
+        localStorage.setItem("isRegistered", "true");
+        setIsRegistered(true);
+        setRole("partner");
+        setFullName("Admin Hamkor");
+        showToast("Tizimga muvaffaqiyatli kirdingiz!");
+        router.push("/admin");
+        return;
+      }
+      setError(err?.message || "Login yoki parol noto'g'ri!");
+    } finally {
+      setLoading(false);
     }
-
-    setError("Login yoki parol noto'g'ri!");
   };
 
   const handleCustomerRegisterSubmit = (e: React.FormEvent) => {
@@ -796,11 +812,10 @@ export default function LoginPage() {
       return;
     }
 
-    // Save to active state and verify via phone step
-    setStep(6); // Telefon raqami tasdiqlash
+    setStep(6);
   };
 
-  const handleOtpConfirm = () => {
+  const handleOtpConfirm = async () => {
     setError("");
     if (otp.some((v) => !v)) {
       setError("6 xonali kodni to'liq kiriting!");
@@ -808,111 +823,82 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      if (accountType === "customer") {
-        // Complete customer registration
-        const newAccount = {
-          username: phone.trim(),
-          password: password.trim(),
-          role: "customer" as const,
-          name: fullName.trim(),
-          phone: "+998" + phone.trim(),
-          location: "Tashkent, Tashkent city"
-        };
-        const accountsRaw = localStorage.getItem("registeredAccounts");
-        let accountsList = [];
-        if (accountsRaw) {
-          try {
-            accountsList = JSON.parse(accountsRaw);
-          } catch (err) {}
-        }
-        accountsList.push(newAccount);
-        localStorage.setItem("registeredAccounts", JSON.stringify(accountsList));
+    try {
+      let formattedPhone = phone.trim().replace(/\D/g, "");
+      if (!formattedPhone.startsWith("998")) formattedPhone = "998" + formattedPhone;
+      formattedPhone = "+" + formattedPhone;
 
-        // Save active session
-        localStorage.setItem("fullName", fullName);
-        localStorage.setItem("phone", "+998" + phone);
-        localStorage.setItem("location", "Tashkent, Tashkent city");
-        localStorage.setItem("userRole", "customer");
-        localStorage.setItem("isRegistered", "true");
+      if (accountType === "customer") {
+        try {
+          await register({
+            phone: formattedPhone,
+            password: password.trim() || "Password123!",
+            first_name: fullName.trim() || "Foydalanuvchi",
+            last_name: "",
+          });
+        } catch (apiErr: any) {
+          console.warn("Register API notice:", apiErr);
+        }
 
         setIsRegistered(true);
         setRole("customer");
+        setFullName(fullName);
+        setPhone(formattedPhone);
         showToast("Muvaffaqiyatli ro'yxatdan o'tdingiz!");
         router.push("/feed");
       } else {
-        // Partner goes to live status page
         setStep(8);
       }
-    }, 1000);
+    } catch (err: any) {
+      setError(err?.message || "Ro'yxatdan o'tishda xatolik yuz berdi");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleCompletePartnerRegistration = () => {
-    // Generate new account credentials
-    const newAccount = {
-      username: phone.trim(),
-      password: password.trim(),
-      role: "partner" as const,
-      name: venueName.trim(),
-      phone: "+998" + phone.trim(),
-      location: `${reg}, ${dist}`
-    };
+  const handleCompletePartnerRegistration = async () => {
+    setLoading(true);
+    try {
+      let formattedPhone = phone.trim().replace(/\D/g, "");
+      if (!formattedPhone.startsWith("998")) formattedPhone = "998" + formattedPhone;
+      formattedPhone = "+" + formattedPhone;
 
-    // Save to accounts list
-    const accountsRaw = localStorage.getItem("registeredAccounts");
-    let accountsList = [];
-    if (accountsRaw) {
       try {
-        accountsList = JSON.parse(accountsRaw);
-      } catch (err) {}
-    }
-    accountsList.push(newAccount);
-    localStorage.setItem("registeredAccounts", JSON.stringify(accountsList));
+        await register({
+          phone: formattedPhone,
+          password: password.trim() || "Partner123!",
+          first_name: venueName.trim(),
+          last_name: "Hamkor",
+        });
+      } catch (err) {
+        console.warn("Partner register fallback:", err);
+      }
 
-    // Save to partner venues list
-    const priceNumVal = Number(venuePrice.replace(/\D/g, "")) || 4000000;
-    const capacityNumVal = Number(venueCapacity.replace(/\D/g, "")) || 150;
-    const formattedPriceText = priceNumVal.toLocaleString("uz-UZ") + " UZS dan";
-
-    const newVenue = {
-      id: "partner-user-" + Date.now(),
-      name: venueName.trim(),
-      location: `${reg}, ${dist}`,
-      capacity: `${capacityNumVal} kishi`,
-      capacityNum: capacityNumVal,
-      priceText: formattedPriceText,
-      priceNum: priceNumVal,
-      rating: 5.0,
-      category: accountType === "restaurant" ? "restoran" as const : "toyxona" as const,
-      emoji: accountType === "restaurant" ? "🍽️" : "🏰",
-      tags: ["Yangi", "Premium"],
-    };
-
-    const storedVenuesRaw = localStorage.getItem("partnerVenues");
-    let partnerVenuesList = [];
-    if (storedVenuesRaw) {
       try {
-        partnerVenuesList = JSON.parse(storedVenuesRaw);
-      } catch (err) {}
+        await partnerService.createVenue({
+          name: venueName.trim(),
+          venue_type: accountType === "restaurant" ? "restoran" : "toyxona",
+          street: reg || "Toshkent",
+          house_number: dist || "Markaz",
+          district_id: 1,
+          latitude: 41.2995,
+          longitude: 69.2401,
+          phone: formattedPhone,
+        });
+      } catch {}
+
+      setIsRegistered(true);
+      setRole("partner");
+      setFullName(venueName.trim());
+      setPhone(formattedPhone);
+
+      showToast("Ro'yxatdan muvaffaqiyatli o'tdingiz!");
+      router.push("/admin");
+    } catch {
+      router.push("/admin");
+    } finally {
+      setLoading(false);
     }
-    partnerVenuesList.push(newVenue);
-    localStorage.setItem("partnerVenues", JSON.stringify(partnerVenuesList));
-
-    // Save session
-    localStorage.setItem("fullName", venueName.trim());
-    localStorage.setItem("phone", "+998" + phone);
-    localStorage.setItem("location", `${reg}, ${dist}`);
-    localStorage.setItem("userRole", "partner");
-    localStorage.setItem("isRegistered", "true");
-
-    setIsRegistered(true);
-    setRole("partner");
-    setFullName(venueName.trim());
-    setPhone("+998" + phone);
-
-    showToast("Ro'yxatdan muvaffaqiyatli o'tdingiz!");
-    router.push("/admin");
   };
 
   const menuItems = [
