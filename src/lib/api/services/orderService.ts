@@ -120,15 +120,14 @@ export const orderService = {
   // --- Venue Bookings Management ---
   async getVenueBookings(
     venueId: number | string,
-    dateFrom?: string | null,
-    dateTo?: string | null,
+    day?: string | null,
     status?: string | null
   ): Promise<BookingListItem[]> {
+    const targetDay = day || new Date().toISOString().split("T")[0];
     return apiFetch<BookingListItem[]>("/api/v1/venue/bookings", {
       params: {
         venue_id: venueId,
-        date_from: dateFrom || undefined,
-        date_to: dateTo || undefined,
+        day: targetDay,
         status: status || undefined,
       },
     });
