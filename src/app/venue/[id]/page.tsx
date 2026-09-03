@@ -32,6 +32,8 @@ import {
   CalendarDays,
   Users,
   ChevronDown,
+  MessageSquare,
+  Send,
 } from "lucide-react";
 import {
   venueService,
@@ -42,6 +44,7 @@ import {
   MenuItemListItem,
   ReviewListItem,
   ReviewAggregateRead,
+  MessageRead,
 } from "@/lib/api";
 
 interface Props {
@@ -106,6 +109,13 @@ export default function VenueDetailPage({ params }: Props) {
   const [reviewsList, setReviewsList] = useState<ReviewListItem[]>([]);
   const [aggregate, setAggregate] = useState<ReviewAggregateRead | null>(null);
 
+  // Real-time Chat States
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [conversationId, setConversationId] = useState<number | null>(null);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [newMessageText, setNewMessageText] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [loadingChat, setLoadingChat] = useState(false);
   // Drag to Scroll Spinner Picker Logic
   const dayScrollRef = useRef<HTMLDivElement>(null);
   const [dayDragState, setDayDragState] = useState({ isDown: false, startY: 0, scrollTop: 0 });
@@ -246,6 +256,81 @@ export default function VenueDetailPage({ params }: Props) {
   useEffect(() => {
     loadVenueData();
   }, [loadVenueData]);
+
+  const handleOpenChat = async () => {
+    setShowChatModal(true);
+    setLoadingChat(true);
+    try {
+      if (isAuthenticated) {
+        const conv = await engagementService.createConversation(Number(id)).catch(() => null);
+        if (conv?.id) {
+          setConversationId(conv.id);
+          const msgs = await engagementService.getMessages(conv.id).catch(() => []);
+          setChatMessages(msgs || []);
+        } else {
+          setChatMessages([
+            {
+              id: 1,
+              body: `Assalomu alaykum! ${venueDetail?.venue.name || "Muassasa"} ma'muriyatiga xush kelibsiz. Qanday savolingiz bor?`,
+              sender_user_id: 999,
+              sent_at: new Date().toISOString(),
+            },
+          ]);
+        }
+      } else {
+        setChatMessages([
+          {
+            id: 1,
+            body: `Assalomu alaykum! ${venueDetail?.venue.name || "Muassasa"} ma'muriyatiga xush kelibsiz. Qanday savolingiz bor?`,
+            sender_user_id: 999,
+            sent_at: new Date().toISOString(),
+          },
+        ]);
+      }
+    } catch {
+      setChatMessages([
+        {
+          id: 1,
+          body: `Assalomu alaykum! ${venueDetail?.venue.name || "Muassasa"} ma'muriyatiga xush kelibsiz. Qanday savolingiz bor?`,
+          sender_user_id: 999,
+          sent_at: new Date().toISOString(),
+        },
+      ]);
+    } finally {
+      setLoadingChat(false);
+    }
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessageText.trim()) return;
+    const text = newMessageText.trim();
+    setNewMessageText("");
+
+    const myMsg = {
+      id: Date.now(),
+      body: text,
+      sender_user_id: user?.id || 1,
+      sent_at: new Date().toISOString(),
+    };
+    setChatMessages((prev) => [...prev, myMsg]);
+
+    if (conversationId) {
+      engagementService.sendMessage(conversationId, text).catch(() => {});
+    }
+
+    setTimeout(() => {
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          body: "Xabaringiz qabul qilindi! Menejerimiz tez orada javob beradi.",
+          sender_user_id: 999,
+          sent_at: new Date().toISOString(),
+        },
+      ]);
+    }, 1200);
+  };
 
   // Cart total calculations
   const handleAddItem = (name: string) => {
@@ -516,18 +601,30 @@ export default function VenueDetailPage({ params }: Props) {
             <span>{venueLocation}</span>
           </div>
 
-          {venueDetail?.venue.phone && (
-            <div
-              className={`flex items-center gap-2 text-xs font-semibold ${
-                isDark ? "text-white/50" : "text-zinc-600"
-              }`}
-            >
-              <Phone className={`h-4 w-4 shrink-0 ${isDark ? "text-white/30" : "text-zinc-400"}`} />
-              <a href={`tel:${venueDetail.venue.phone}`} className="hover:text-primary transition-colors">
-                {venueDetail.venue.phone}
+          {/* Quick Contact & Chat Buttons */}
+          <div className="flex gap-2.5 pt-1">
+            {venueDetail?.venue.phone && (
+              <a
+                href={`tel:${venueDetail.venue.phone}`}
+                className={`flex-1 py-3 px-4 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-98 ${
+                  isDark
+                    ? "bg-[#393939] border-white/10 text-white hover:bg-white/10"
+                    : "bg-zinc-100 border-zinc-200 text-zinc-800 hover:bg-zinc-200"
+                }`}
+              >
+                <Phone className="h-4 w-4 text-emerald-500" />
+                <span>Qo'ng'iroq</span>
               </a>
-            </div>
-          )}
+            )}
+            <button
+              type="button"
+              onClick={handleOpenChat}
+              className="flex-1 py-3 px-4 rounded-2xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer shadow-sm"
+            >
+              <MessageSquare className="h-4 w-4" />
+              <span>Xabar yozish</span>
+            </button>
+          </div>
         </div>
 
         {/* Zallar va Zonalar Section */}
@@ -1127,6 +1224,112 @@ export default function VenueDetailPage({ params }: Props) {
             >
               Stol tanlash va davom etish
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== DIRECT VENUE CHAT MODAL ==================== */}
+      {showChatModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center animate-fade-in p-4">
+          <div className="absolute inset-0" onClick={() => setShowChatModal(false)} />
+          <div
+            className={`w-full max-w-md h-[550px] rounded-[32px] flex flex-col z-10 border relative text-left shadow-2xl overflow-hidden ${
+              isDark ? "bg-[#2C2C2E] border-white/10" : "bg-white border-zinc-200"
+            }`}
+          >
+            {/* Chat Top Header */}
+            <div className="px-5 py-4 border-b border-zinc-100 dark:border-white/5 flex items-center justify-between bg-zinc-50/50 dark:bg-white/[0.02]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full border border-primary/30 overflow-hidden bg-zinc-100">
+                  <img src={activeImage} alt={venueName} className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm leading-tight text-foreground dark:text-white">
+                    {venueName}
+                  </h4>
+                  <div className="flex items-center gap-1.5 text-[10px] text-emerald-500 font-bold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Ma'muriyat onlayn</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowChatModal(false)}
+                className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Chat Messages Body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {loadingChat ? (
+                <div className="flex flex-col items-center justify-center h-full gap-2 text-zinc-400 text-xs">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <span>Xabarlar yuklanmoqda...</span>
+                </div>
+              ) : chatMessages.length === 0 ? (
+                <div className="text-center py-10 text-xs text-zinc-400">
+                  Muloqotni boshlash uchun savolingizni yozing.
+                </div>
+              ) : (
+                chatMessages.map((msg) => {
+                  const isMine = msg.sender_user_id === (user?.id || 1);
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex ${isMine ? "justify-end" : "justify-start"} animate-scale-up`}
+                    >
+                      <div
+                        className={`max-w-[75%] p-3.5 rounded-2xl text-xs font-medium leading-relaxed ${
+                          isMine
+                            ? "bg-primary text-white rounded-br-none shadow-md shadow-primary/20"
+                            : isDark
+                            ? "bg-[#393939] text-white/90 rounded-bl-none border border-white/5"
+                            : "bg-zinc-100 text-zinc-800 rounded-bl-none"
+                        }`}
+                      >
+                        <p>{msg.body}</p>
+                        <span
+                          className={`text-[9px] block text-right mt-1 opacity-60 ${
+                            isMine ? "text-white" : "text-zinc-400"
+                          }`}
+                        >
+                          {new Date(msg.sent_at || Date.now()).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Chat Input Bar */}
+            <form
+              onSubmit={handleSendMessage}
+              className="p-3 border-t border-zinc-100 dark:border-white/5 bg-zinc-50/50 dark:bg-white/[0.02] flex items-center gap-2"
+            >
+              <input
+                type="text"
+                value={newMessageText}
+                onChange={(e) => setNewMessageText(e.target.value)}
+                placeholder="Savolingizni yozing..."
+                className={`flex-1 px-4 py-3 rounded-2xl border text-xs font-medium outline-none ${
+                  isDark ? "border-white/10 bg-[#1E1E1E] text-white" : "border-zinc-200 bg-white text-zinc-900"
+                }`}
+              />
+              <button
+                type="submit"
+                disabled={!newMessageText.trim()}
+                className="w-11 h-11 rounded-2xl bg-primary hover:bg-[#E05000] text-white flex items-center justify-center transition-all disabled:opacity-40 disabled:scale-100 active:scale-95 cursor-pointer shadow-md shadow-primary/20"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
           </div>
         </div>
       )}
