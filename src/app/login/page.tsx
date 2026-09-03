@@ -30,6 +30,7 @@ import {
   Trash2,
   Sun,
   Moon,
+  Loader2,
 } from "lucide-react";
 import Navbar from "@/components/navbar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,6 +40,8 @@ import {
   geoService,
   partnerService,
   engagementService,
+  RegionRead,
+  DistrictRead,
 } from "@/lib/api";
 
 type Step =
@@ -142,6 +145,11 @@ export default function LoginPage() {
   const [isNumLayout, setIsNumLayout] = useState(false);
   const [reg, setReg] = useState("");
   const [dist, setDist] = useState("");
+  const [partnerRegions, setPartnerRegions] = useState<RegionRead[]>([]);
+  const [partnerDistricts, setPartnerDistricts] = useState<DistrictRead[]>([]);
+  const [selectedPartnerRegionId, setSelectedPartnerRegionId] = useState<number | null>(null);
+  const [selectedPartnerDistrictId, setSelectedPartnerDistrictId] = useState<number | null>(null);
+  const [loadingPartnerDistricts, setLoadingPartnerDistricts] = useState(false);
 
   // Profile Edit Mode States
   const [isEditing, setIsEditing] = useState(false);
@@ -582,6 +590,24 @@ export default function LoginPage() {
     }
   }, [user]);
 
+  useEffect(() => {
+    geoService.getRegions()
+      .then((res) => setPartnerRegions(res || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (selectedPartnerRegionId) {
+      setLoadingPartnerDistricts(true);
+      geoService.getDistricts(selectedPartnerRegionId)
+        .then((d) => setPartnerDistricts(d || []))
+        .catch(() => setPartnerDistricts([]))
+        .finally(() => setLoadingPartnerDistricts(false));
+    } else {
+      setPartnerDistricts([]);
+    }
+  }, [selectedPartnerRegionId]);
+
   // Dynamic bottom navigation bar visibility controller for cards sub-flows & logout drawers
   useEffect(() => {
     const bottomNav = document.getElementById("global-bottom-nav");
@@ -947,7 +973,7 @@ export default function LoginPage() {
           venue_type: accountType === "restaurant" ? "restoran" : "toyxona",
           street: reg || "Toshkent",
           house_number: dist || "Markaz",
-          district_id: 1,
+          district_id: selectedPartnerDistrictId || 1,
           latitude: 41.2995,
           longitude: 69.2401,
           phone: formattedPhone,
@@ -3143,44 +3169,39 @@ export default function LoginPage() {
                       </div>
 
                       <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 text-left">
-                        {[
-                          "Toshkent sh.",
-                          "Toshkent vil.",
-                          "Samarqand",
-                          "Buxoro",
-                          "Farg'ona",
-                          "Andijon",
-                          "Namangan",
-                          "Navoiy",
-                          "Jizzax",
-                          "Sirdaryo",
-                          "Qashqadaryo",
-                          "Surxondaryo",
-                          "Xorazm",
-                          "Qoraqalpog'iston Resp."
-                        ].map((regionName) => {
-                          const isSelected = reg === regionName;
-                          return (
-                            <button
-                              key={regionName}
-                              type="button"
-                              onClick={() => {
-                                setReg(regionName);
-                                setStep("district");
-                              }}
-                              className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
-                                isSelected
-                                  ? "bg-[#FF5A00]/10 border-[#FF5A00] font-bold text-[#FF5A00]"
-                                  : isDark
-                                    ? "bg-[#2C2C2E]/60 border-white/5 hover:bg-[#3A3A3C] text-white"
-                                    : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-zinc-900"
-                              }`}
-                            >
-                              <span>{regionName}</span>
-                              <ChevronRight className="h-4 w-4 opacity-50" />
-                            </button>
-                          );
-                        })}
+                        {partnerRegions.length > 0 ? (
+                          partnerRegions.map((region) => {
+                            const isSelected = selectedPartnerRegionId === region.id;
+                            return (
+                              <button
+                                key={region.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedPartnerRegionId(region.id);
+                                  setReg(region.name);
+                                  setDist("");
+                                  setSelectedPartnerDistrictId(null);
+                                  setStep("district");
+                                }}
+                                className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                                  isSelected
+                                    ? "bg-[#FF5A00]/10 border-[#FF5A00] font-bold text-[#FF5A00]"
+                                    : isDark
+                                      ? "bg-[#2C2C2E]/60 border-white/5 hover:bg-[#3A3A3C] text-white"
+                                      : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-zinc-900"
+                                }`}
+                              >
+                                <span>{region.name}</span>
+                                <ChevronRight className="h-4 w-4 opacity-50" />
+                              </button>
+                            );
+                          })
+                        ) : (
+                          <div className="py-8 flex items-center justify-center gap-2 text-xs text-zinc-400">
+                            <Loader2 className="h-4 w-4 animate-spin text-[#FF5A00]" />
+                            <span>Viloyatlar yuklanmoqda...</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -3209,36 +3230,39 @@ export default function LoginPage() {
                       </div>
 
                       <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 text-left">
-                        {(reg === "Toshkent sh."
-                          ? ["Chilonzor", "Yunusobod", "Mirzo Ulug'bek", "Mirobod", "Yakkasaroy", "Shayxontohur", "Olmazor", "Sergeli", "Yashnobod", "Uchtepa"]
-                          : reg === "Toshkent vil."
-                          ? ["Zangiota", "Qibray", "Chirchiq", "Yangiyo'l", "Bo'stonliq", "Parkent", "O'rtachirchiq"]
-                          : reg === "Samarqand"
-                          ? ["Samarqand sh.", "Pastdarg'om", "Urgut", "Toyloq", "Bulung'ur", "Kattaqo'rg'on"]
-                          : ["Markaziy tuman", "Shimoliy tuman", "G'arbiy tuman", "Janubiy tuman"]
-                        ).map((districtName) => {
-                          const isSelected = dist === districtName;
-                          return (
-                            <button
-                              key={districtName}
-                              type="button"
-                              onClick={() => {
-                                setDist(districtName);
-                                setStep(3);
-                              }}
-                              className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
-                                isSelected
-                                  ? "bg-[#FF5A00]/10 border-[#FF5A00] font-bold text-[#FF5A00]"
-                                  : isDark
-                                    ? "bg-[#2C2C2E]/60 border-white/5 hover:bg-[#3A3A3C] text-white"
-                                    : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-zinc-900"
-                              }`}
-                            >
-                              <span>{districtName}</span>
-                              <Check className={`h-4 w-4 text-[#FF5A00] ${isSelected ? "opacity-100" : "opacity-0"}`} />
-                            </button>
-                          );
-                        })}
+                        {loadingPartnerDistricts ? (
+                          <div className="py-8 flex items-center justify-center gap-2 text-xs text-zinc-400">
+                            <Loader2 className="h-4 w-4 animate-spin text-[#FF5A00]" />
+                            <span>Tumanlar yuklanmoqda...</span>
+                          </div>
+                        ) : partnerDistricts.length > 0 ? (
+                          partnerDistricts.map((district) => {
+                            const isSelected = selectedPartnerDistrictId === district.id;
+                            return (
+                              <button
+                                key={district.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedPartnerDistrictId(district.id);
+                                  setDist(district.name);
+                                  setStep(3);
+                                }}
+                                className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                                  isSelected
+                                    ? "bg-[#FF5A00]/10 border-[#FF5A00] font-bold text-[#FF5A00]"
+                                    : isDark
+                                      ? "bg-[#2C2C2E]/60 border-white/5 hover:bg-[#3A3A3C] text-white"
+                                      : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-zinc-900"
+                                }`}
+                              >
+                                <span>{district.name}</span>
+                                <Check className={`h-4 w-4 text-[#FF5A00] ${isSelected ? "opacity-100" : "opacity-0"}`} />
+                              </button>
+                            );
+                          })
+                        ) : (
+                          <p className="py-6 text-center text-xs text-zinc-400">Tumanlar topilmadi</p>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -149,6 +149,41 @@ export default function FeedPage() {
     }
   };
 
+  const handleAutoLocationFeed = async () => {
+    if (!navigator.geolocation) {
+      showToast("Geolokatsiya qo'llab-quvvatlanmaydi");
+      return;
+    }
+    setLoadingGeo(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const nearest = await geoService.getNearestDistrict(latitude, longitude);
+          const formattedLoc = `${nearest.region_name}, ${nearest.district_name.replace(" tumani", "")}`;
+          setCurrentLocation(formattedLoc);
+          setSelectedRegionId(nearest.region_id);
+          setSelectedRegionName(nearest.region_name);
+          setSelectedDistrictId(nearest.district_id);
+          setSelectedDistrictName(nearest.district_name);
+          localStorage.setItem("feedLocation", formattedLoc);
+          localStorage.setItem("feedDistrictId", String(nearest.district_id));
+          setShowLocationSelect(false);
+          showToast(`Manzil aniqlandi: ${nearest.district_name}`);
+        } catch {
+          showToast("Eng yaqin tuman topilmadi");
+        } finally {
+          setLoadingGeo(false);
+        }
+      },
+      () => {
+        setLoadingGeo(false);
+        showToast("Geolokatsiyaga ruxsat berilmadi");
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
+
   return (
     <div
       className={`flex flex-col flex-1 bg-[var(--background)] ${
@@ -195,6 +230,28 @@ export default function FeedPage() {
           {/* Form Content */}
           <main className="flex-1 px-6 py-6 pb-8 flex flex-col justify-between max-w-md mx-auto w-full">
             <div className="space-y-6">
+              {/* GPS Auto Location Button */}
+              <button
+                type="button"
+                onClick={handleAutoLocationFeed}
+                disabled={loadingGeo}
+                className={`w-full p-4 rounded-2xl border flex items-center gap-3.5 transition-all text-left cursor-pointer ${
+                  isDark
+                    ? "bg-[#393939]/70 border-white/10 hover:bg-[#393939]"
+                    : "bg-orange-50 border-orange-200 hover:bg-orange-100"
+                }`}
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#FF6B00]/15 flex items-center justify-center text-[#FF6B00] shrink-0">
+                  {loadingGeo ? <Loader2 className="h-5 w-5 animate-spin" /> : <MapPin className="h-5 w-5" />}
+                </div>
+                <div>
+                  <span className={`text-xs font-bold block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                    Joylashuvni avtomatik aniqlash (GPS)
+                  </span>
+                  <span className="text-[10px] text-zinc-400">Eng yaqin viloyat va tuman</span>
+                </div>
+              </button>
+
               {/* Qaysi viloyat */}
               <div className="space-y-2 text-left">
                 <label className={`block text-xs font-semibold ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>

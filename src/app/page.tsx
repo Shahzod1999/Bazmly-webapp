@@ -20,6 +20,8 @@ import {
   Moon,
   Bookmark,
   Loader2,
+  Check,
+  Globe,
 } from "lucide-react";
 import Navbar from "@/components/navbar";
 import { useTheme } from "@/components/theme-provider";
@@ -32,6 +34,8 @@ import {
   VenueListItem,
   UserAddressRead,
   VenueTypeSlug,
+  RegionRead,
+  DistrictRead,
 } from "@/lib/api";
 
 const FALLBACK_IMAGES = [
@@ -56,10 +60,19 @@ export default function WelcomePage() {
   const [venues, setVenues] = useState<VenueListItem[]>([]);
   const [loadingVenues, setLoadingVenues] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [guestCountFilter, setGuestCountFilter] = useState<number | null>(null);
+  const [favoriteVenueIds, setFavoriteVenueIds] = useState<Set<number>>(new Set());
   const [recentLocations, setRecentLocations] = useState<UserAddressRead[]>([]);
   const [selectedDistrictId, setSelectedDistrictId] = useState<number | null>(null);
   const [selectedDistrictName, setSelectedDistrictName] = useState<string>("");
   const [geoDetecting, setGeoDetecting] = useState(false);
+
+  // Geo Regions & Districts
+  const [geoRegions, setGeoRegions] = useState<RegionRead[]>([]);
+  const [activeRegionId, setActiveRegionId] = useState<number | null>(null);
+  const [regionDistrictsMap, setRegionDistrictsMap] = useState<Record<number, DistrictRead[]>>({});
+  const [loadingDistrictsFor, setLoadingDistrictsFor] = useState<number | null>(null);
+  const [locationSearchInput, setLocationSearchInput] = useState("");
 
   // Interactive party/time picker state
   const [showPartySheet, setShowPartySheet] = useState(false);
@@ -176,20 +189,20 @@ export default function WelcomePage() {
       if (activeTab === "To'yxonalar") vType = "toyxona";
 
       const res = await venueService.searchVenues({
-        query: searchQuery || undefined,
+        query: searchQuery.trim() || undefined,
         venue_type: vType,
         district_id: selectedDistrictId || undefined,
-        limit: 10,
+        guest_count: guestCountFilter || undefined,
+        limit: 20,
       });
       setVenues(res.items || []);
     } catch (err) {
       console.warn("Venues fetch fallback:", err);
-      // Fallback items if network error
       setVenues([]);
     } finally {
       setLoadingVenues(false);
     }
-  }, [activeTab, searchQuery, selectedDistrictId]);
+  }, [activeTab, searchQuery, selectedDistrictId, guestCountFilter]);
 
   useEffect(() => {
     setMounted(true);
@@ -211,11 +224,16 @@ export default function WelcomePage() {
     }
   }, []);
 
-  // Fetch recent locations if user is logged in
+  // Fetch recent locations & favorites if user is logged in
   useEffect(() => {
     if (isAuthenticated) {
       userService.listRecentLocations()
-        .then((locs) => setRecentLocations(locs))
+        .then((locs) => setRecentLocations(locs || []))
+        .catch(() => {});
+      engagementService.getFavorites()
+        .then((favs) => {
+          setFavoriteVenueIds(new Set((favs || []).map((f) => (f as any).venue_id || f.venue?.id).filter(Boolean)));
+        })
         .catch(() => {});
     }
   }, [isAuthenticated]);
@@ -237,6 +255,66 @@ export default function WelcomePage() {
     return () => clearInterval(interval);
   }, [isRegistered, BANNERS.length]);
 
+  // Fetch regions on mount
+  useEffect(() => {
+    geoService.getRegions()
+      .then((res) => setGeoRegions(res || []))
+      .catch(() => {});
+
+    const savedId = localStorage.getItem("selectedDistrictId");
+    const savedName = localStorage.getItem("selectedDistrictName");
+    if (savedId) {
+      setSelectedDistrictId(Number(savedId));
+    }
+    if (savedName) {
+      setSelectedDistrictName(savedName);
+    } else {
+      setSelectedDistrictName("Toshkent shahri (Barcha tumanlar)");
+      setSelectedDistrictId(null);
+    }
+  }, []);
+
+  const handleToggleRegion = async (regionId: number) => {
+    if (activeRegionId === regionId) {
+      setActiveRegionId(null);
+      return;
+    }
+    setActiveRegionId(regionId);
+    if (!regionDistrictsMap[regionId]) {
+      setLoadingDistrictsFor(regionId);
+      try {
+        const d = await geoService.getDistricts(regionId);
+        setRegionDistrictsMap((prev) => ({ ...prev, [regionId]: d || [] }));
+      } finally {
+        setLoadingDistrictsFor(null);
+      }
+    }
+  };
+
+  const handleSelectDistrict = async (districtId: number | null, label: string) => {
+    setSelectedDistrictId(districtId);
+    setSelectedDistrictName(label);
+    if (districtId) {
+      localStorage.setItem("selectedDistrictId", String(districtId));
+    } else {
+      localStorage.removeItem("selectedDistrictId");
+    }
+    localStorage.setItem("selectedDistrictName", label);
+    setShowLocationSearch(false);
+    setLocationSearchInput("");
+    setToastMessage(`Manzil tanlandi: ${label}`);
+
+    if (isAuthenticated && districtId) {
+      await userService.saveRecentLocation({
+        district_id: districtId,
+        label,
+        latitude: 41.2995,
+        longitude: 69.2401,
+      }).catch(() => {});
+      userService.listRecentLocations().then((locs) => setRecentLocations(locs || [])).catch(() => {});
+    }
+  };
+
   // Auto GPS Location Handler
   const handleAutoLocation = async () => {
     if (!navigator.geolocation) {
@@ -250,27 +328,32 @@ export default function WelcomePage() {
         try {
           const { latitude, longitude } = pos.coords;
           const nearest = await geoService.getNearestDistrict(latitude, longitude);
+          const fullLabel = `${nearest.region_name}, ${nearest.district_name}`;
           setSelectedDistrictId(nearest.district_id);
-          setSelectedDistrictName(`${nearest.region_name}, ${nearest.district_name}`);
+          setSelectedDistrictName(fullLabel);
+          localStorage.setItem("selectedDistrictId", String(nearest.district_id));
+          localStorage.setItem("selectedDistrictName", fullLabel);
           
           if (isAuthenticated) {
             await userService.saveRecentLocation({
               district_id: nearest.district_id,
-              label: `${nearest.region_name}, ${nearest.district_name}`,
+              label: fullLabel,
               latitude,
               longitude,
             }).catch(() => {});
+            userService.listRecentLocations().then((locs) => setRecentLocations(locs || [])).catch(() => {});
           }
 
           setShowLocationSearch(false);
+          setLocationSearchInput("");
           setToastMessage(`Manzil aniqlandi: ${nearest.district_name}`);
-        } catch (e: any) {
+        } catch {
           setToastMessage("Eng yaqin tuman topilmadi");
         } finally {
           setGeoDetecting(false);
         }
       },
-      (err) => {
+      () => {
         setGeoDetecting(false);
         setToastMessage("Geolokatsiyaga ruxsat berilmadi");
       },
@@ -287,6 +370,15 @@ export default function WelcomePage() {
     }
     try {
       const res = await engagementService.toggleFavorite(venueId);
+      setFavoriteVenueIds((prev) => {
+        const next = new Set(prev);
+        if (res.is_favorite) {
+          next.add(venueId);
+        } else {
+          next.delete(venueId);
+        }
+        return next;
+      });
       setToastMessage(res.is_favorite ? "Sevimliga qo'shildi ❤️" : "Sevimlilardan olib tashlandi");
     } catch {
       setToastMessage("Xatolik yuz berdi");
@@ -328,28 +420,6 @@ export default function WelcomePage() {
 
   const displayName = user?.first_name ? `${user.first_name}` : (localStorage.getItem("fullName") || "Shahzod");
 
-  // Fallback cards for visual richness if backend has few items
-  const displayTopVenue = venues[0] || {
-    id: 1,
-    name: "Rest One",
-    tagline: "Navoiy, O'zbekiston ko'chasi 27 - uy",
-    status: "active" as const,
-    rating_avg: "4.8",
-    reviews_count: 356,
-    base_price: "4,000,000",
-    currency: "UZS",
-    discount_percent: "10",
-    requires_deposit: true,
-    distance_m: 1000,
-    is_open_now: true,
-  };
-
-  const displayGridVenues = venues.length > 1 ? venues.slice(1, 5) : [
-    { id: 1, name: "Sayqal", rating_avg: "4.8", reviews_count: 128, distance_m: 2000, is_open_now: true, status: "active" as const, base_price: null, currency: "UZS", discount_percent: null, requires_deposit: false, tagline: "Umid qo'rg'oni 765 - uy" },
-    { id: 2, name: "Tinchlik", rating_avg: "4.8", reviews_count: 214, distance_m: 2000, is_open_now: true, status: "active" as const, base_price: null, currency: "UZS", discount_percent: null, requires_deposit: true, tagline: "Umid qo'rg'oni 765 - uy" },
-    { id: 4, name: "Panorama", rating_avg: "4.8", reviews_count: 185, distance_m: 2000, is_open_now: true, status: "active" as const, base_price: null, currency: "UZS", discount_percent: null, requires_deposit: true, tagline: "Umid qo'rg'oni 765 - uy" },
-    { id: 5, name: "Sharqona", rating_avg: "4.8", reviews_count: 95, distance_m: 2000, is_open_now: true, status: "active" as const, base_price: null, currency: "UZS", discount_percent: null, requires_deposit: false, tagline: "Umid qo'rg'oni 765 - uy" },
-  ];
 
   return (
     <div className="flex flex-col flex-1 bg-[var(--background)] text-foreground transition-colors duration-300 relative">
@@ -371,10 +441,15 @@ export default function WelcomePage() {
                 Hayrli kun! {displayName}
               </h1>
               {selectedDistrictName && (
-                <p className="text-[11px] font-bold text-primary flex items-center gap-1 mt-0.5">
-                  <MapPin className="h-3 w-3" />
-                  <span>{selectedDistrictName}</span>
-                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowLocationSearch(true)}
+                  className="text-[11px] font-bold text-primary flex items-center gap-1 mt-0.5 hover:opacity-80 transition-opacity cursor-pointer text-left"
+                >
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  <span className="truncate max-w-[200px]">{selectedDistrictName}</span>
+                  <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
+                </button>
               )}
             </div>
 
@@ -454,11 +529,54 @@ export default function WelcomePage() {
                 onClick={() => setShowPartySheet(true)}
                 className={`bg-[#FF6B00] hover:bg-[#E05000] text-white rounded-2xl shadow-lg shadow-[#FF6B00]/20 transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
                   theme === "dark" ? "p-4" : "p-3.5"
-                }`}
+                } ${guestCountFilter ? "ring-2 ring-white" : ""}`}
               >
                 <SlidersHorizontal className="h-5 w-5" />
               </button>
             </div>
+
+            {/* Active Filter Chips */}
+            {(guestCountFilter || (selectedDistrictId !== null && selectedDistrictName) || searchQuery) && (
+              <div className="flex flex-wrap items-center gap-2 pt-0.5 animate-fade-in">
+                {selectedDistrictId !== null && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FF6B00]/10 border border-[#FF6B00]/20 text-[#FF6B00] text-xs font-bold">
+                    <MapPin className="h-3 w-3" />
+                    <span className="truncate max-w-[140px]">{selectedDistrictName.split(", ").pop() || "Tuman"}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectDistrict(null, "Toshkent shahri (Barcha tumanlar)")}
+                      className="hover:opacity-70 p-0.5 cursor-pointer"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+                {guestCountFilter && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FF6B00]/10 border border-[#FF6B00]/20 text-[#FF6B00] text-xs font-bold">
+                    <span>{guestCountFilter} kishi</span>
+                    <button
+                      type="button"
+                      onClick={() => setGuestCountFilter(null)}
+                      className="hover:opacity-70 p-0.5 cursor-pointer"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+                {searchQuery && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FF6B00]/10 border border-[#FF6B00]/20 text-[#FF6B00] text-xs font-bold">
+                    <span>"{searchQuery}"</span>
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="hover:opacity-70 p-0.5 cursor-pointer"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Horizontal Tabs / Pills */}
             <div className="flex w-full gap-2.5 pb-1 overflow-x-auto scrollbar-none">
@@ -571,189 +689,277 @@ export default function WelcomePage() {
                 </Link>
               </div>
 
-              {/* Large Featured Card */}
-              <Link
-                href={`/venue/${displayTopVenue.id}`}
-                className={`w-full border rounded-3xl flex flex-col gap-4 shadow-lg transition-all block text-left group ${
-                  theme === "dark"
-                    ? "bg-[#393939] border-white/5 p-5 hover:border-white/10"
-                    : "bg-white border-zinc-100 p-4 hover:border-zinc-200"
-                }`}
-              >
-                {/* Visual Image Display */}
-                <div
-                  className={`w-full h-44 rounded-2xl overflow-hidden relative border ${
-                    theme === "dark" ? "border-white/5" : "border-zinc-100"
-                  }`}
-                >
-                  <img
-                    src={FALLBACK_IMAGES[0]}
-                    alt={displayTopVenue.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <button
-                    onClick={(e) => handleToggleFavorite(e, displayTopVenue.id)}
-                    className="absolute top-3 right-3 p-2 rounded-xl bg-black/40 backdrop-blur-md text-white hover:text-red-400 transition-colors"
-                  >
-                    <Bookmark className="h-4 w-4" />
-                  </button>
-                </div>
-
-                {/* Restaurant details */}
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3
-                        className={`text-base font-extrabold tracking-tight ${
-                          theme === "dark" ? "text-white" : "text-zinc-900"
-                        }`}
-                      >
-                        {displayTopVenue.name}
-                      </h3>
-                      <div className="flex items-center gap-1 text-xs text-green-600 font-bold pt-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                        <span>{displayTopVenue.is_open_now ? "Ochiq" : "Faol"}</span>
-                      </div>
-                    </div>
-
-                    {/* Star Rating */}
-                    <div
-                      className={`flex items-center gap-1 text-xs font-bold text-[#FFB800] border px-2.5 py-1 rounded-xl ${
-                        theme === "dark" ? "bg-white/5 border-white/5" : "bg-yellow-500/5 border-yellow-500/10"
-                      }`}
-                    >
-                      <Star className="h-3.5 w-3.5 fill-[#FFB800] text-[#FFB800]" />
-                      <span>
-                        {displayTopVenue.rating_avg && Number(displayTopVenue.rating_avg) > 0
-                          ? `${displayTopVenue.rating_avg} (${displayTopVenue.reviews_count} ta sharh)`
-                          : "4.8 (356 ta sharh)"}
-                      </span>
-                    </div>
+              {/* Venues Content */}
+              {loadingVenues ? (
+                /* Skeleton Loader */
+                <div className="space-y-4 animate-pulse">
+                  <div className={`w-full h-72 rounded-3xl border ${theme === "dark" ? "bg-[#393939]/60 border-white/5" : "bg-zinc-100 border-zinc-200"}`} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className={`h-56 rounded-3xl border ${theme === "dark" ? "bg-[#393939]/60 border-white/5" : "bg-zinc-100 border-zinc-200"}`} />
+                    <div className={`h-56 rounded-3xl border ${theme === "dark" ? "bg-[#393939]/60 border-white/5" : "bg-zinc-100 border-zinc-200"}`} />
                   </div>
-
-                  {/* Metadata Row */}
-                  <div className="flex justify-between items-center">
-                    <div
-                      className={`flex items-center gap-1.5 text-xs font-bold ${
-                        theme === "dark" ? "text-white/60" : "text-zinc-500"
-                      }`}
+                </div>
+              ) : venues.length === 0 ? (
+                /* Empty State */
+                <div className={`py-12 px-6 text-center space-y-3 rounded-3xl border border-dashed ${
+                  theme === "dark" ? "border-white/10 bg-white/[0.02]" : "border-zinc-200 bg-zinc-50"
+                }`}>
+                  <div className="w-12 h-12 rounded-2xl bg-[#FF6B00]/10 flex items-center justify-center text-[#FF6B00] mx-auto">
+                    <Search className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground dark:text-white">
+                    Mos keluvchi muassasa topilmadi
+                  </h3>
+                  <p className="text-xs text-zinc-400 max-w-xs mx-auto leading-relaxed">
+                    {selectedDistrictId !== null
+                      ? "Tanlangan tumanda hali muassasalar mavjud emas. Barcha tumanlar bo'yicha ko'rishni xohlaysizmi?"
+                      : searchQuery
+                      ? `"${searchQuery}" so'rovi bo'yicha hech qanday natija topilmadi.`
+                      : "Ushbu toifada hozircha muassasalar mavjud emas."}
+                  </p>
+                  {(selectedDistrictId !== null || searchQuery || guestCountFilter) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDistrictId(null);
+                        setSelectedDistrictName("Toshkent shahri (Barcha tumanlar)");
+                        setSearchQuery("");
+                        setGuestCountFilter(null);
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-[#FF6B00] hover:bg-[#E05000] text-white text-xs font-bold shadow-md shadow-[#FF6B00]/20 transition-all cursor-pointer"
                     >
-                      <Compass className="h-4 w-4 text-zinc-400 dark:text-white/40" />
-                      <span>{displayTopVenue.distance_m ? `${Math.round(displayTopVenue.distance_m / 1000)} km uzoqda` : "1 km uzoqda"}</span>
-                    </div>
+                      Barcha muassasalarni ko'rish
+                    </button>
+                  )}
+                </div>
+              ) : (
+                /* Venues List */
+                <div className="space-y-4">
+                  {/* Large Featured Card (First Venue) */}
+                  {(() => {
+                    const topVenue = venues[0];
+                    const isFav = favoriteVenueIds.has(topVenue.id);
+                    const isToyxona = topVenue.name.toLowerCase().includes("to'yxona") ||
+                      topVenue.name.toLowerCase().includes("zali") ||
+                      activeTab === "To'yxonalar";
+                    const bannerImg = isToyxona ? "/images/home/tuyxona1.png" : "/images/home/top.png";
 
-                    {/* Deposit green badge */}
-                    {displayTopVenue.requires_deposit ? (
-                      <div
-                        className={`flex items-center gap-1 font-bold rounded-lg px-2.5 py-1 text-[10px] uppercase tracking-wider transition-colors ${
+                    return (
+                      <Link
+                        href={`/venue/${topVenue.id}`}
+                        className={`w-full border rounded-3xl flex flex-col gap-4 shadow-lg transition-all block text-left group ${
                           theme === "dark"
-                            ? "bg-green-500/10 border border-green-500/20 text-[#10B981]"
-                            : "bg-[#10B981] text-white shadow-sm"
+                            ? "bg-[#393939] border-white/5 p-5 hover:border-white/10"
+                            : "bg-white border-zinc-100 p-4 hover:border-zinc-200"
                         }`}
                       >
-                        <Wallet className="h-3.5 w-3.5 shrink-0" />
-                        <span>Depozitlik</span>
-                      </div>
-                    ) : (
-                      <span className="text-[10px] font-bold text-zinc-400">Depozitsiz</span>
-                    )}
-                  </div>
-
-                  {/* Address */}
-                  <div
-                    className={`flex items-center gap-1.5 text-xs font-semibold truncate pt-0.5 ${
-                      theme === "dark" ? "text-white/50" : "text-zinc-500"
-                    }`}
-                  >
-                    <MapPin className="h-4 w-4 text-zinc-400 dark:text-white/30 shrink-0" />
-                    <span className="truncate">{displayTopVenue.tagline || "O'zbekiston ko'chasi 27 - uy"}</span>
-                  </div>
-                </div>
-              </Link>
-            </div>
-
-            {/* 2x2 Grid of Venues */}
-            <div className="grid grid-cols-2 gap-4">
-              {displayGridVenues.map((card, idx) => {
-                const img = FALLBACK_IMAGES[(idx + 1) % FALLBACK_IMAGES.length];
-                return (
-                  <div
-                    key={card.id}
-                    className={`border rounded-3xl p-3 flex flex-col gap-3 shadow-md text-left relative group ${
-                      theme === "dark" ? "bg-[#393939] border-white/5 shadow-lg" : "bg-white border-zinc-100"
-                    }`}
-                  >
-                    {/* Image Viewport */}
-                    <div
-                      className={`w-full aspect-[1.1/1] rounded-2xl overflow-hidden relative border ${
-                        theme === "dark" ? "bg-zinc-800 border-white/5" : "bg-zinc-100 border-zinc-100"
-                      }`}
-                    >
-                      <img
-                        src={img}
-                        alt={card.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-
-                    {/* Info details */}
-                    <div className="space-y-2 pr-0.5">
-                      <div className="flex items-center justify-between gap-1">
-                        <h4
-                          className={`text-xs font-bold tracking-wide truncate ${
-                            theme === "dark" ? "text-white" : "text-zinc-950"
+                        {/* Visual Image Display */}
+                        <div
+                          className={`w-full h-44 rounded-2xl overflow-hidden relative border ${
+                            theme === "dark" ? "border-white/5" : "border-zinc-100"
                           }`}
                         >
-                          {card.name}
-                        </h4>
-                        <div className="flex items-center gap-0.5 text-[10px] font-bold text-[#FFB800] shrink-0">
-                          <Star className="h-3 w-3 fill-[#FFB800] text-[#FFB800]" />
-                          <span>{card.rating_avg && Number(card.rating_avg) > 0 ? card.rating_avg : "4.8"}</span>
+                          <img
+                            src={bannerImg}
+                            alt={topVenue.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleFavorite(e, topVenue.id)}
+                            className={`absolute top-3 right-3 p-2 rounded-xl backdrop-blur-md transition-colors cursor-pointer ${
+                              isFav ? "bg-red-500/90 text-white" : "bg-black/40 text-white hover:text-red-400"
+                            }`}
+                          >
+                            <Bookmark className={`h-4 w-4 ${isFav ? "fill-white" : ""}`} />
+                          </button>
                         </div>
-                      </div>
 
-                      {/* Distance & Status info */}
-                      <div
-                        className={`flex items-center gap-1 text-[10px] font-bold leading-none ${
-                          theme === "dark" ? "text-white/50" : "text-zinc-500"
-                        }`}
-                      >
-                        <Compass className="h-3 w-3 text-zinc-400 dark:text-white/30 shrink-0" />
-                        <span>{card.distance_m ? `${Math.round(card.distance_m / 1000)} km` : "2 km"}</span>
-                        <span className="opacity-20">|</span>
-                        <span className="text-[#10B981]">{card.is_open_now ? "Ochiq" : "Faol"}</span>
-                      </div>
+                        {/* Restaurant details */}
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3
+                                className={`text-base font-extrabold tracking-tight ${
+                                  theme === "dark" ? "text-white" : "text-zinc-900"
+                                }`}
+                              >
+                                {topVenue.name}
+                              </h3>
+                              <div className="flex items-center gap-1 text-xs text-green-600 font-bold pt-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                <span>{topVenue.is_open_now ? "Ochiq" : "Faol"}</span>
+                              </div>
+                            </div>
 
-                      {/* Address */}
-                      <div
-                        className={`flex items-center gap-1 text-[10px] font-semibold truncate leading-none ${
-                          theme === "dark" ? "text-white/40" : "text-zinc-400"
-                        }`}
-                      >
-                        <MapPin className="h-3 w-3 text-zinc-400 dark:text-white/20 shrink-0" />
-                        <span className="truncate">{card.tagline || "Umid qo'rg'oni"}</span>
-                      </div>
+                            {/* Star Rating */}
+                            <div
+                              className={`flex items-center gap-1 text-xs font-bold text-[#FFB800] border px-2.5 py-1 rounded-xl ${
+                                theme === "dark" ? "bg-white/5 border-white/5" : "bg-yellow-500/5 border-yellow-500/10"
+                              }`}
+                            >
+                              <Star className="h-3.5 w-3.5 fill-[#FFB800] text-[#FFB800]" />
+                              <span>
+                                {topVenue.rating_avg && Number(topVenue.rating_avg) > 0
+                                  ? `${topVenue.rating_avg} (${topVenue.reviews_count || 0})`
+                                  : "4.8"}
+                              </span>
+                            </div>
+                          </div>
 
-                      {/* View Button */}
-                      <Link
-                        href={`/venue/${card.id}`}
-                        className={`w-full py-2 text-[10px] font-bold rounded-full flex items-center justify-center gap-1 active:scale-95 transition-all shadow-md mt-1 ${
-                          theme === "dark"
-                            ? "bg-white text-zinc-950 hover:bg-zinc-100"
-                            : "bg-[#FF6B00] text-white hover:bg-[#E05000]"
-                        }`}
-                      >
-                        <span>Ko'rish</span>
-                        <ArrowRight
-                          className={`h-3 w-3 stroke-[3] ${
-                            theme === "dark" ? "text-zinc-950" : "text-white"
-                          }`}
-                        />
+                          {/* Metadata Row */}
+                          <div className="flex justify-between items-center">
+                            <div
+                              className={`flex items-center gap-1.5 text-xs font-bold ${
+                                theme === "dark" ? "text-white/60" : "text-zinc-500"
+                              }`}
+                            >
+                              <Compass className="h-4 w-4 text-zinc-400 dark:text-white/40" />
+                              <span>
+                                {topVenue.distance_m
+                                  ? `${(topVenue.distance_m / 1000).toFixed(1)} km uzoqda`
+                                  : "Toshkent"}
+                              </span>
+                            </div>
+
+                            {/* Deposit / Price badge */}
+                            {topVenue.base_price ? (
+                              <span className="text-[11px] font-bold text-primary">
+                                {Number(topVenue.base_price).toLocaleString()} UZS dan
+                              </span>
+                            ) : topVenue.requires_deposit ? (
+                              <div
+                                className={`flex items-center gap-1 font-bold rounded-lg px-2.5 py-1 text-[10px] uppercase tracking-wider transition-colors ${
+                                  theme === "dark"
+                                    ? "bg-green-500/10 border border-green-500/20 text-[#10B981]"
+                                    : "bg-[#10B981] text-white shadow-sm"
+                                }`}
+                              >
+                                <Wallet className="h-3.5 w-3.5 shrink-0" />
+                                <span>Depozitlik</span>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-bold text-zinc-400">Depozitsiz</span>
+                            )}
+                          </div>
+
+                          {/* Address / Tagline */}
+                          <div
+                            className={`flex items-center gap-1.5 text-xs font-semibold truncate pt-0.5 ${
+                              theme === "dark" ? "text-white/50" : "text-zinc-500"
+                            }`}
+                          >
+                            <MapPin className="h-4 w-4 text-zinc-400 dark:text-white/30 shrink-0" />
+                            <span className="truncate">{topVenue.tagline || "Toshkent shahri"}</span>
+                          </div>
+                        </div>
                       </Link>
+                    );
+                  })()}
+
+                  {/* 2x2 Grid for Other Venues */}
+                  {venues.length > 1 && (
+                    <div className="grid grid-cols-2 gap-4">
+                      {venues.slice(1).map((card, idx) => {
+                        const isFav = favoriteVenueIds.has(card.id);
+                        const isToyxona = card.name.toLowerCase().includes("to'yxona") ||
+                          card.name.toLowerCase().includes("zali") ||
+                          activeTab === "To'yxonalar";
+                        const img = isToyxona
+                          ? FALLBACK_IMAGES[(idx + 2) % FALLBACK_IMAGES.length]
+                          : FALLBACK_IMAGES[(idx + 1) % FALLBACK_IMAGES.length];
+
+                        return (
+                          <div
+                            key={card.id}
+                            className={`border rounded-3xl p-3 flex flex-col gap-3 shadow-md text-left relative group ${
+                              theme === "dark" ? "bg-[#393939] border-white/5 shadow-lg" : "bg-white border-zinc-100"
+                            }`}
+                          >
+                            {/* Image Viewport */}
+                            <div
+                              className={`w-full aspect-[1.1/1] rounded-2xl overflow-hidden relative border ${
+                                theme === "dark" ? "bg-zinc-800 border-white/5" : "bg-zinc-100 border-zinc-100"
+                              }`}
+                            >
+                              <img
+                                src={img}
+                                alt={card.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              <button
+                                type="button"
+                                onClick={(e) => handleToggleFavorite(e, card.id)}
+                                className={`absolute top-2 right-2 p-1.5 rounded-lg backdrop-blur-md transition-colors cursor-pointer z-10 ${
+                                  isFav ? "bg-red-500/90 text-white" : "bg-black/40 text-white hover:text-red-400"
+                                }`}
+                              >
+                                <Bookmark className={`h-3.5 w-3.5 ${isFav ? "fill-white" : ""}`} />
+                              </button>
+                            </div>
+
+                            {/* Info details */}
+                            <div className="space-y-2 pr-0.5">
+                              <div className="flex items-center justify-between gap-1">
+                                <h4
+                                  className={`text-xs font-bold tracking-wide truncate ${
+                                    theme === "dark" ? "text-white" : "text-zinc-950"
+                                  }`}
+                                >
+                                  {card.name}
+                                </h4>
+                                <div className="flex items-center gap-0.5 text-[10px] font-bold text-[#FFB800] shrink-0">
+                                  <Star className="h-3 w-3 fill-[#FFB800] text-[#FFB800]" />
+                                  <span>{card.rating_avg && Number(card.rating_avg) > 0 ? card.rating_avg : "4.8"}</span>
+                                </div>
+                              </div>
+
+                              {/* Distance & Status info */}
+                              <div
+                                className={`flex items-center gap-1 text-[10px] font-bold leading-none ${
+                                  theme === "dark" ? "text-white/50" : "text-zinc-500"
+                                }`}
+                              >
+                                <Compass className="h-3 w-3 text-zinc-400 dark:text-white/30 shrink-0" />
+                                <span>{card.distance_m ? `${(card.distance_m / 1000).toFixed(1)} km` : "Toshkent"}</span>
+                                <span className="opacity-20">|</span>
+                                <span className="text-[#10B981]">{card.is_open_now ? "Ochiq" : "Faol"}</span>
+                              </div>
+
+                              {/* Address */}
+                              <div
+                                className={`flex items-center gap-1 text-[10px] font-semibold truncate leading-none ${
+                                  theme === "dark" ? "text-white/40" : "text-zinc-400"
+                                }`}
+                              >
+                                <MapPin className="h-3 w-3 text-zinc-400 dark:text-white/20 shrink-0" />
+                                <span className="truncate">{card.tagline || "Toshkent shahri"}</span>
+                              </div>
+
+                              {/* View Button */}
+                              <Link
+                                href={`/venue/${card.id}`}
+                                className={`w-full py-2 text-[10px] font-bold rounded-full flex items-center justify-center gap-1 active:scale-95 transition-all shadow-md mt-1 ${
+                                  theme === "dark"
+                                    ? "bg-white text-zinc-950 hover:bg-zinc-100"
+                                    : "bg-[#FF6B00] text-white hover:bg-[#E05000]"
+                                }`}
+                              >
+                                <span>Ko'rish</span>
+                                <ArrowRight
+                                  className={`h-3 w-3 stroke-[3] ${
+                                    theme === "dark" ? "text-zinc-950" : "text-white"
+                                  }`}
+                                />
+                              </Link>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
-                );
-              })}
+                  )}
+                </div>
+              )}
             </div>
           </main>
         </div>
@@ -980,11 +1186,12 @@ export default function WelcomePage() {
             <button
               onClick={() => {
                 setShowPartySheet(false);
-                setShowLocationSearch(true);
+                setGuestCountFilter(partySize);
+                setToastMessage(`${partySize} kishilik joylar saralanmoqda...`);
               }}
               className="w-full py-4.5 bg-[#FF6B00] hover:bg-[#E05000] text-white font-extrabold text-sm rounded-[24px] shadow-lg shadow-[#FF6B00]/20 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 cursor-pointer"
             >
-              Izlash
+              Izlash ({partySize} kishi, {selectedDay} {selectedTime})
             </button>
           </div>
         </div>
@@ -998,7 +1205,7 @@ export default function WelcomePage() {
             <button
               onClick={() => {
                 setShowLocationSearch(false);
-                setShowPartySheet(true);
+                setLocationSearchInput("");
               }}
               className="p-2.5 rounded-xl bg-brand-light-card dark:bg-[#393939] border border-brand-light-border dark:border-white/5 text-foreground/80 dark:text-white/80 hover:text-white transition-all active:scale-90 cursor-pointer"
             >
@@ -1009,9 +1216,20 @@ export default function WelcomePage() {
               <Search className="h-4.5 w-4.5 text-foreground/40 dark:text-zinc-500 shrink-0" />
               <input
                 type="text"
-                placeholder="Tuman yoki manzil qidirish..."
+                value={locationSearchInput}
+                onChange={(e) => setLocationSearchInput(e.target.value)}
+                placeholder="Viloyat yoki tuman qidirish..."
                 className="w-full bg-transparent border-0 p-0 pl-2.5 text-sm font-bold text-foreground dark:text-white focus:ring-0 outline-none placeholder:text-foreground/30 dark:placeholder:text-zinc-600"
               />
+              {locationSearchInput && (
+                <button
+                  type="button"
+                  onClick={() => setLocationSearchInput("")}
+                  className="text-zinc-400 hover:text-white p-1 cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -1019,9 +1237,9 @@ export default function WelcomePage() {
           <button
             onClick={handleAutoLocation}
             disabled={geoDetecting}
-            className="w-full px-6 py-5 border-b border-brand-light-border dark:border-white/5 flex items-center gap-3.5 hover:bg-foreground/5 dark:hover:bg-white/5 transition-colors cursor-pointer text-left disabled:opacity-50"
+            className="w-full px-6 py-4.5 border-b border-brand-light-border dark:border-white/5 flex items-center gap-3.5 hover:bg-foreground/5 dark:hover:bg-white/5 transition-colors cursor-pointer text-left disabled:opacity-50"
           >
-            <div className="text-[#FF6B00]">
+            <div className="w-10 h-10 rounded-full bg-[#FF6B00]/10 flex items-center justify-center text-[#FF6B00] shrink-0">
               {geoDetecting ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
@@ -1030,55 +1248,141 @@ export default function WelcomePage() {
             </div>
             <div>
               <span className="text-sm font-black text-foreground dark:text-white block">
-                Manzilni avtomatik aniqlash
+                {geoDetecting ? "Joylashuv aniqlanmoqda..." : "Manzilni avtomatik aniqlash"}
               </span>
-              <span className="text-[10px] text-zinc-400">GPS koordinata bo'yicha eng yaqin tuman</span>
+              <span className="text-[10px] text-zinc-400">GPS koordinata orqali eng yaqin tuman</span>
             </div>
           </button>
 
-          {/* Section: Oxirgi manzillar */}
-          <div className="flex-1 px-6 py-6 space-y-4 text-left overflow-y-auto">
-            <h3 className="text-sm font-black text-foreground/40 dark:text-zinc-400 tracking-wide">
-              Oxirgi manzillar
-            </h3>
+          {/* Scrollable List */}
+          <div className="flex-1 px-6 py-5 space-y-6 text-left overflow-y-auto">
+            {/* Top Quick Option: Barcha tumanlar */}
+            {!locationSearchInput.trim() && (
+              <button
+                type="button"
+                onClick={() => handleSelectDistrict(null, "Toshkent shahri (Barcha tumanlar)")}
+                className={`w-full py-3.5 px-4 rounded-2xl border flex items-center justify-between transition-all cursor-pointer ${
+                  selectedDistrictId === null
+                    ? "bg-[#FF6B00]/10 border-[#FF6B00] text-[#FF6B00] font-bold"
+                    : "border-brand-light-border dark:border-white/5 bg-brand-light-card/60 dark:bg-[#393939]/40 hover:bg-foreground/5 dark:hover:bg-white/5 text-foreground dark:text-white"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-[#FF6B00]/15 flex items-center justify-center text-[#FF6B00] shrink-0">
+                    <Globe className="h-4.5 w-4.5" />
+                  </div>
+                  <div className="text-left">
+                    <span className="text-sm font-bold block">Barcha tumanlar</span>
+                    <span className="text-[10px] opacity-60">Barcha restoran va to'yxonalarni ko'rish</span>
+                  </div>
+                </div>
+                {selectedDistrictId === null && <Check className="h-4 w-4 text-[#FF6B00]" />}
+              </button>
+            )}
+            {/* Oxirgi manzillar (if any) */}
+            {recentLocations.length > 0 && !locationSearchInput.trim() && (
+              <div className="space-y-2.5">
+                <h3 className="text-xs font-extrabold text-foreground/40 dark:text-zinc-400 tracking-wider uppercase">
+                  Oxirgi manzillar
+                </h3>
+                <div className="space-y-1">
+                  {recentLocations.map((loc) => (
+                    <button
+                      key={loc.id}
+                      onClick={() => handleSelectDistrict(loc.district_id, loc.label)}
+                      className="w-full py-3 px-3.5 rounded-xl border border-transparent hover:border-brand-light-border dark:hover:border-white/5 flex items-center gap-3 hover:bg-foreground/5 dark:hover:bg-white/5 transition-colors cursor-pointer text-left"
+                    >
+                      <MapPin className="h-4 w-4 text-[#FF6B00] shrink-0" />
+                      <span className="text-sm font-bold text-foreground/90 dark:text-white/90 truncate">{loc.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-            <div className="space-y-1">
-              {recentLocations.length > 0 ? (
-                recentLocations.map((loc) => (
-                  <button
-                    key={loc.id}
-                    onClick={() => {
-                      setSelectedDistrictId(loc.district_id);
-                      setSelectedDistrictName(loc.label);
-                      setShowLocationSearch(false);
-                      setToastMessage(`Manzil tanlandi: ${loc.label}`);
-                    }}
-                    className="w-full py-4 border-b border-brand-light-border dark:border-white/5 last:border-b-0 flex items-center gap-3.5 hover:bg-foreground/5 dark:hover:bg-white/5 transition-colors cursor-pointer text-left"
-                  >
-                    <MapPin className="h-5 w-5 text-foreground/30 dark:text-zinc-500 shrink-0" />
-                    <span className="text-sm font-bold text-foreground/90 dark:text-white/90">{loc.label}</span>
-                  </button>
-                ))
-              ) : (
-                [
-                  { name: "Navoiy shahar, Navoiy", id: 1 },
-                  { name: "Mirzo Ulug'bek, Toshkent", id: 2 },
-                  { name: "Chilonzor, Toshkent", id: 3 },
-                ].map((loc) => (
-                  <button
-                    key={loc.id}
-                    onClick={() => {
-                      setSelectedDistrictName(loc.name);
-                      setShowLocationSearch(false);
-                      setToastMessage(`Manzil tanlandi: ${loc.name}`);
-                    }}
-                    className="w-full py-4 border-b border-brand-light-border dark:border-white/5 last:border-b-0 flex items-center gap-3.5 hover:bg-foreground/5 dark:hover:bg-white/5 transition-colors cursor-pointer text-left"
-                  >
-                    <MapPin className="h-5 w-5 text-foreground/30 dark:text-zinc-500 shrink-0" />
-                    <span className="text-sm font-bold text-foreground/90 dark:text-white/90">{loc.name}</span>
-                  </button>
-                ))
-              )}
+            {/* Barcha viloyatlar va tumanlar */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-extrabold text-foreground/40 dark:text-zinc-400 tracking-wider uppercase">
+                {locationSearchInput.trim() ? "Qidiruv natijalari" : "Viloyatlar va tumanlar"}
+              </h3>
+
+              <div className="space-y-2">
+                {geoRegions
+                  .filter((r) =>
+                    !locationSearchInput.trim() ||
+                    r.name.toLowerCase().includes(locationSearchInput.toLowerCase())
+                  )
+                  .map((region) => {
+                    const isExpanded = activeRegionId === region.id;
+                    const districts = regionDistrictsMap[region.id] || [];
+                    const isLoadingDistricts = loadingDistrictsFor === region.id;
+
+                    return (
+                      <div
+                        key={region.id}
+                        className={`rounded-2xl border transition-all overflow-hidden ${
+                          isExpanded
+                            ? "border-[#FF6B00]/40 bg-[#FF6B00]/5 dark:bg-white/[0.02]"
+                            : "border-brand-light-border dark:border-white/5 bg-brand-light-card/50 dark:bg-[#393939]/30"
+                        }`}
+                      >
+                        {/* Region Header Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleRegion(region.id)}
+                          className="w-full px-4 py-3.5 flex items-center justify-between text-left cursor-pointer hover:opacity-90"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-base font-bold text-foreground dark:text-white">
+                              {region.name}
+                            </span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-foreground/5 dark:bg-white/10 text-foreground/60 dark:text-white/60">
+                              {region.code}
+                            </span>
+                          </div>
+                          <ChevronDown
+                            className={`h-4 w-4 transition-transform duration-200 text-foreground/40 dark:text-zinc-400 ${
+                              isExpanded ? "rotate-180 text-[#FF6B00]" : ""
+                            }`}
+                          />
+                        </button>
+
+                        {/* Districts list inside region */}
+                        {isExpanded && (
+                          <div className="px-3 pb-3 pt-1 border-t border-brand-light-border/60 dark:border-white/5 space-y-1">
+                            {isLoadingDistricts ? (
+                              <div className="py-4 flex items-center justify-center gap-2 text-xs text-zinc-400">
+                                <Loader2 className="h-4 w-4 animate-spin text-[#FF6B00]" />
+                                <span>Tumanlar yuklanmoqda...</span>
+                              </div>
+                            ) : districts.length > 0 ? (
+                              districts.map((district) => {
+                                const isCurrent = selectedDistrictId === district.id;
+                                return (
+                                  <button
+                                    key={district.id}
+                                    type="button"
+                                    onClick={() => handleSelectDistrict(district.id, `${region.name}, ${district.name}`)}
+                                    className={`w-full py-2.5 px-3 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer ${
+                                      isCurrent
+                                        ? "bg-[#FF6B00] text-white shadow-sm"
+                                        : "hover:bg-foreground/5 dark:hover:bg-white/10 text-foreground/80 dark:text-white/80"
+                                    }`}
+                                  >
+                                    <span>{district.name}</span>
+                                    {isCurrent && <Check className="h-3.5 w-3.5" />}
+                                  </button>
+                                );
+                              })
+                            ) : (
+                              <p className="py-2 text-center text-xs text-zinc-400">Tumanlar topilmadi</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
             </div>
           </div>
         </div>
