@@ -1,8 +1,11 @@
 import { ApiErrorResponse, TokenPair } from "./types";
 
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "https://bazmly-backend-production.up.railway.app";
+  process.env.NEXT_PUBLIC_API_BASE_URL !== undefined
+    ? process.env.NEXT_PUBLIC_API_BASE_URL
+    : typeof window !== "undefined"
+    ? ""
+    : "https://bazmly-backend-production.up.railway.app";
 
 export class BazmlyApiError extends Error {
   public code: string;
@@ -10,13 +13,19 @@ export class BazmlyApiError extends Error {
   public details?: Record<string, any> | null;
   public requestId?: string;
 
-  constructor(status: number, data: Partial<ApiErrorResponse>) {
-    super(data.message || `So'rov bajarilmadi (${status})`);
+  constructor(status: number, data: any) {
+    let msg = data?.message;
+    if (!msg && Array.isArray(data?.detail)) {
+      msg = data.detail.map((d: any) => d.msg || `${d.loc?.join(".")}: ${d.msg}`).join(", ");
+    } else if (!msg && typeof data?.detail === "string") {
+      msg = data.detail;
+    }
+    super(msg || `So'rov bajarilmadi (${status})`);
     this.name = "BazmlyApiError";
     this.status = status;
-    this.code = data.code || "unknown_error";
-    this.details = data.details || null;
-    this.requestId = data.request_id;
+    this.code = data?.code || "unknown_error";
+    this.details = data?.details || (Array.isArray(data?.detail) ? { errors: data.detail } : null);
+    this.requestId = data?.request_id;
   }
 }
 

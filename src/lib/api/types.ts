@@ -1,6 +1,6 @@
 // TypeScript definitions matching Bazmly Backend OpenAPI 3.1.0 Specification
 
-export type UserRole = "customer" | "partner" | "admin" | "staff";
+export type UserRole = "customer" | "venue_owner" | "venue_staff" | "moderator" | "admin" | "partner" | "staff";
 export type UserStatus = "active" | "inactive" | "pending_profile" | "blocked" | "deleted";
 export type UserTheme = "light" | "dark" | "system";
 

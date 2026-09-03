@@ -19,7 +19,7 @@ import {
   Building2,
   Clock,
   Bell,
-  ChevronRig  ht,
+  ChevronRight,
   ChevronLeft,
   Settings,
   Utensils,

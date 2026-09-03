@@ -97,7 +97,7 @@ const FAQS = [
 export default function LoginPage() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
-  const { user, login, register, loginStaff, logout, updateProfile } = useAuth();
+  const { user, login, register, loginStaff, logout, updateProfile, deleteAccount, checkPhone } = useAuth();
   const isDark = theme === "dark";
   const formatPhone = (val: string) => {
     if (!val) return "";
@@ -212,7 +212,7 @@ export default function LoginPage() {
 
   const [isCaps, setIsCaps] = useState(false);
   
-  const handleCustomerFinalRegister = () => {
+  const handleCustomerFinalRegister = async () => {
     setError("");
     if (!fullName.trim()) {
       setError("Ismingizni kiriting!");
@@ -220,38 +220,67 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      const newAccount = {
-        username: phone.trim(),
-        password: "default_password",
-        role: "customer" as const,
-        name: fullName.trim(),
-        phone: "+998" + phone.trim(),
-        location: "Tashkent, Tashkent city"
-      };
-
-      const accountsRaw = localStorage.getItem("registeredAccounts");
-      let accountsList = [];
-      if (accountsRaw) {
-        try {
-          accountsList = JSON.parse(accountsRaw) as any[];
-        } catch (err) {}
+    try {
+      const nameParts = fullName.trim().split(/\s+/);
+      const firstName = nameParts[0] || "Foydalanuvchi";
+      const lastName = nameParts.slice(1).join(" ") || "Mijoz";
+      let formattedPhone = phone.trim().replace(/\D/g, "");
+      if (!formattedPhone.startsWith("998")) {
+        formattedPhone = "998" + formattedPhone;
       }
-      accountsList.push(newAccount);
-      localStorage.setItem("registeredAccounts", JSON.stringify(accountsList));
+      formattedPhone = "+" + formattedPhone;
 
-      localStorage.setItem("fullName", newAccount.name);
-      localStorage.setItem("phone", newAccount.phone);
-      localStorage.setItem("location", newAccount.location);
-      localStorage.setItem("userRole", newAccount.role);
-      localStorage.setItem("isRegistered", "true");
-      
+      await register({
+        phone: formattedPhone,
+        first_name: firstName,
+        last_name: lastName,
+        password: password.trim() || undefined,
+      });
+
       setIsRegistered(true);
       setRole("customer");
+      setFullName(fullName.trim());
+      setPhone(formattedPhone);
       showToast("Ro'yxatdan muvaffaqiyatli o'tdingiz!");
       router.push("/feed");
-    }, 1000);
+    } catch (err: any) {
+      setError(err?.message || "Ro'yxatdan o'tishda xatolik yuz berdi");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePhoneCheckAndContinue = async () => {
+    if (phone.length < 9) {
+      setError("Telefon raqamingizni to'liq kiriting!");
+      return;
+    }
+    setError("");
+    let formattedPhone = phone.trim().replace(/\D/g, "");
+    if (!formattedPhone.startsWith("998")) {
+      formattedPhone = "998" + formattedPhone;
+    }
+    formattedPhone = "+" + formattedPhone;
+
+    setLoading(true);
+    try {
+      const result = await checkPhone(formattedPhone);
+      if (result.registered) {
+        if (result.password_required) {
+          showToast("Ushbu raqam allaqachon ro'yxatdan o'tgan. Iltimos parolingiz bilan kiring.");
+          setUsername(phone);
+          setStep("login");
+        } else {
+          setStep("register_customer_phone_otp");
+        }
+      } else {
+        setStep("register_customer_phone_otp");
+      }
+    } catch {
+      setStep("register_customer_phone_otp");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCustomKeyPress = (key: string) => {
@@ -530,14 +559,28 @@ export default function LoginPage() {
   // Mount effect to check registration state
   useEffect(() => {
     setMounted(true);
-    const registered = localStorage.getItem("isRegistered") === "true";
-    if (registered) {
+    if (user) {
       setIsRegistered(true);
-      setFullName(localStorage.getItem("fullName") || "Alisher Raimov");
-      setLocation(localStorage.getItem("location") || "Tashkent, Tashkent city");
-      setPhone(localStorage.getItem("phone") || "");
+      const name = `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Foydalanuvchi";
+      setFullName(name);
+      if (user.phone) setPhone(user.phone);
+      const isPrivileged =
+        user.role === "partner" ||
+        user.role === "venue_owner" ||
+        user.role === "venue_staff" ||
+        user.role === "admin" ||
+        user.role === "staff";
+      setRole(isPrivileged ? "partner" : "customer");
+    } else {
+      const registered = localStorage.getItem("isRegistered") === "true";
+      if (registered) {
+        setIsRegistered(true);
+        setFullName(localStorage.getItem("fullName") || "Foydalanuvchi");
+        setLocation(localStorage.getItem("location") || "Tashkent, Tashkent city");
+        setPhone(localStorage.getItem("phone") || "");
+      }
     }
-  }, []);
+  }, [user]);
 
   // Dynamic bottom navigation bar visibility controller for cards sub-flows & logout drawers
   useEffect(() => {
@@ -590,19 +633,43 @@ export default function LoginPage() {
       showToast("Ism va familiyangiz bo'sh bo'lishi mumkin emas!");
       return;
     }
+    const nameParts = editName.trim().split(/\s+/);
+    const firstName = nameParts[0] || "Foydalanuvchi";
+    const lastName = nameParts.slice(1).join(" ") || "";
     const cleanLocation = editLocation.trim() || "Tashkent, Tashkent city";
+    setLoading(true);
     try {
       await updateProfile({
-        first_name: editName.trim(),
+        first_name: firstName,
+        last_name: lastName,
       });
       showToast("Profil muvaffaqiyatli saqlandi!");
-    } catch {
-      showToast("Profil saqlandi!");
+      setFullName(editName);
+      setLocation(cleanLocation);
+      setPhone(editPhone);
+      setIsEditing(false);
+    } catch (err: any) {
+      showToast(err?.message || "Profilni saqlashda xatolik!");
+    } finally {
+      setLoading(false);
     }
-    setFullName(editName);
-    setLocation(cleanLocation);
-    setPhone(editPhone);
-    setIsEditing(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    setLoading(true);
+    try {
+      await deleteAccount();
+      setIsRegistered(false);
+      setFullName("");
+      setPhone("");
+      setStep(1);
+      setActiveModal(null);
+      showToast("Akkaunt muvaffaqiyatli o'chirildi.");
+    } catch (err: any) {
+      showToast(err?.message || "Akkauntni o'chirishda xatolik yuz berdi.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -2305,7 +2372,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => {
                     setActiveModal(null);
-                    handleLogout();
+                    handleDeleteAccount();
                   }}
                   className="w-full py-4 rounded-2xl bg-[#E82C2C] hover:bg-red-700 text-white font-bold text-sm tracking-wide flex items-center justify-center gap-2 transition-all active:scale-98 shadow-lg shadow-red-600/10"
                 >
@@ -2659,14 +2726,7 @@ export default function LoginPage() {
                       {/* Orange Action Button */}
                       <button
                         type="button"
-                        onClick={() => {
-                          if (phone.length < 9) {
-                            setError("Telefon raqamingizni to'liq kiriting!");
-                            return;
-                          }
-                          setError("");
-                          setStep("register_customer_phone_otp");
-                        }}
+                        onClick={handlePhoneCheckAndContinue}
                         className={`w-full py-3.5 rounded-[20px] font-bold text-sm tracking-wide transition-all active:scale-98 shadow-lg ${
                           phone.length === 9
                             ? "bg-[#FF5A00] text-white shadow-[#FF5A00]/25 cursor-pointer hover:bg-[#E04F00]"
@@ -2675,7 +2735,7 @@ export default function LoginPage() {
                               : "bg-[#FF5A00]/20 text-[#FF5A00]/45 cursor-not-allowed"
                         }`}
                       >
-                        Akkaunt yaratish
+                        Davom etish
                       </button>
 
 

@@ -23,11 +23,13 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isPartner: boolean;
   isAdmin: boolean;
+  checkPhone: (phone: string) => Promise<{ phone: string; registered: boolean; password_required: boolean }>;
   login: (data: PhoneLogin) => Promise<TokenPair>;
   register: (data: PhoneRegister) => Promise<TokenPair>;
   loginStaff: (data: StaffLogin) => Promise<TokenPair>;
   loginTelegram: (initData: string) => Promise<TokenPair>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   refreshUser: () => Promise<UserRead | null>;
   updateProfile: (data: UserProfileUpdate) => Promise<UserRead>;
 }
@@ -42,9 +44,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
     if (currentUser) {
       localStorage.setItem("isRegistered", "true");
-      localStorage.setItem("fullName", `${currentUser.first_name || ""} ${currentUser.last_name || ""}`.trim() || "Foydalanuvchi");
+      const fullName = `${currentUser.first_name || ""} ${currentUser.last_name || ""}`.trim() || "Foydalanuvchi";
+      localStorage.setItem("fullName", fullName);
       if (currentUser.phone) localStorage.setItem("phone", currentUser.phone);
-      localStorage.setItem("userRole", currentUser.role === "partner" || currentUser.role === "admin" || currentUser.role === "staff" ? "partner" : "customer");
+      const isPrivileged =
+        currentUser.role === "partner" ||
+        currentUser.role === "venue_owner" ||
+        currentUser.role === "venue_staff" ||
+        currentUser.role === "admin" ||
+        currentUser.role === "staff";
+      localStorage.setItem("userRole", isPrivileged ? "partner" : "customer");
     } else {
       localStorage.setItem("isRegistered", "false");
       localStorage.removeItem("fullName");
@@ -69,7 +78,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       syncLegacyStorage(profile);
       return profile;
     } catch {
-      // If profile fetch fails, check if we have stored token or fallback
       const token = getAccessToken();
       if (!token) {
         setUser(null);
@@ -94,6 +102,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("auth:logout", handleLogoutEvent);
     };
   }, [refreshUser]);
+
+  const checkPhone = async (phone: string) => {
+    return authService.checkPhone(phone);
+  };
 
   const login = async (data: PhoneLogin): Promise<TokenPair> => {
     const tokens = await authService.login(data);
@@ -132,6 +144,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     syncLegacyStorage(null);
   };
 
+  const deleteAccount = async (): Promise<void> => {
+    try {
+      await userService.deleteMe();
+    } catch {}
+    clearTokens();
+    setUser(null);
+    syncLegacyStorage(null);
+  };
+
   const updateProfile = async (data: UserProfileUpdate): Promise<UserRead> => {
     const updated = await userService.updateMe(data);
     setUser(updated);
@@ -140,7 +161,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isAuthenticated = !!user || (typeof window !== "undefined" && !!getAccessToken());
-  const isPartner = user?.role === "partner" || user?.role === "admin" || user?.role === "staff";
+  const isPartner =
+    user?.role === "partner" ||
+    user?.role === "venue_owner" ||
+    user?.role === "venue_staff" ||
+    user?.role === "admin" ||
+    user?.role === "staff";
   const isAdmin = user?.role === "admin";
 
   return (
@@ -151,11 +177,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated,
         isPartner,
         isAdmin,
+        checkPhone,
         login,
         register,
         loginStaff,
         loginTelegram,
         logout,
+        deleteAccount,
         refreshUser,
         updateProfile,
       }}
