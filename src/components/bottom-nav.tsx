@@ -45,14 +45,14 @@ export default function BottomNav() {
     const parentFrame = document.getElementById("global-bottom-nav")?.parentElement;
     if (parentFrame) {
       if (isHiddenRoute) {
-        parentFrame.classList.remove("pb-20");
+        parentFrame.classList.remove("pb-20", "pb-16");
       } else {
         parentFrame.classList.add("pb-20");
       }
     }
     return () => {
       if (parentFrame) {
-        parentFrame.classList.add("pb-20");
+        parentFrame.classList.remove("pb-20", "pb-16");
       }
     };
   }, [pathname, isHiddenRoute, mounted]);

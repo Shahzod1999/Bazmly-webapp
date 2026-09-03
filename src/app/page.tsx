@@ -1142,80 +1142,115 @@ export default function WelcomePage() {
 
           <main className="flex-1">
             <section
-              className="relative overflow-hidden py-24 lg:py-36 bg-cover bg-center"
+              className="relative overflow-hidden py-10 sm:py-12 px-5 bg-cover bg-center text-white"
               style={{ backgroundImage: "url('/images/onboarding_bg.jpg')" }}
             >
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/60 backdrop-blur-[3px]" />
+              {/* Background gradient overlay & ambient orange blur */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/90 to-black backdrop-blur-[2px]" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#FF6B00]/15 rounded-full blur-3xl pointer-events-none" />
 
-              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10 text-center text-white">
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 border border-primary/30 px-4 py-1.5 text-sm font-bold text-primary mb-6 animate-pulse backdrop-blur-md">
-                  🎉 Yangi Avlod Marosim Platformasi
+              <div className="relative z-10 text-center flex flex-col items-center">
+                {/* Modern Pill Badge */}
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.07] border border-white/10 px-3.5 py-1.5 text-[11px] font-bold text-white/90 mb-4 backdrop-blur-md shadow-sm">
+                  <Sparkles className="w-3.5 h-3.5 text-[#FF6B00]" />
+                  <span>Marosimlar & Restoranlar platformasi</span>
                 </div>
 
-                <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl max-w-4xl mx-auto leading-tight sm:leading-none text-white">
+                {/* Compact & Punchy Hero Title */}
+                <h1 className="text-[28px] sm:text-[32px] font-black tracking-tight leading-[1.18] text-white max-w-[320px]">
                   Bazmlarni oson{" "}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-orange-400">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF6B00] via-[#FF8533] to-[#FFA04D]">
                     rejalashtiring!
                   </span>
                 </h1>
 
-                <p className="mt-6 text-lg sm:text-xl text-white/80 max-w-2xl mx-auto leading-relaxed">
-                  Qidiruv va oson band qilish uchun ilovadan ro'yxatdan o'ting. To'yxonalar, shinam restoranlar va katering xizmatlarini birgina bosish orqali band qiling!
+                {/* Refined Concise Subtitle */}
+                <p className="mt-3 text-xs sm:text-[13px] text-white/70 max-w-[290px] leading-relaxed font-medium">
+                  To'yxonalar, shinam restoranlar va katering xizmatlarini birgina ilovada toping va band qiling.
                 </p>
 
-                <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+                {/* Mini Stats Bar for Credibility & Polish */}
+                <div className="mt-5 py-2.5 px-4 rounded-2xl bg-white/[0.05] border border-white/10 backdrop-blur-md flex items-center justify-around w-full max-w-[330px] shadow-sm">
+                  <div className="text-center">
+                    <span className="block text-xs font-black text-white">120+</span>
+                    <span className="text-[9px] text-zinc-400 font-semibold">Zallar</span>
+                  </div>
+                  <span className="w-px h-5 bg-white/10" />
+                  <div className="text-center">
+                    <span className="block text-xs font-black text-[#FFB800] flex items-center justify-center gap-0.5">
+                      <Star className="w-3 h-3 fill-[#FFB800]" />
+                      <span>4.9</span>
+                    </span>
+                    <span className="text-[9px] text-zinc-400 font-semibold">Reyting</span>
+                  </div>
+                  <span className="w-px h-5 bg-white/10" />
+                  <div className="text-center">
+                    <span className="block text-xs font-black text-emerald-400">10k+</span>
+                    <span className="text-[9px] text-zinc-400 font-semibold">Mijozlar</span>
+                  </div>
+                </div>
+
+                {/* Compact Action Buttons */}
+                <div className="mt-5 flex items-center gap-2.5 w-full max-w-[330px]">
                   <Link
                     href="/login"
-                    className="w-full sm:w-auto inline-flex items-center justify-center rounded-2xl bg-primary px-8 py-4 text-base font-bold text-white shadow-xl shadow-primary/30 hover:bg-primary-hover hover:scale-[1.02] transition-all duration-200"
+                    className="flex-1 h-12 rounded-2xl bg-gradient-to-r from-[#FF6B00] to-[#FF8533] text-white font-extrabold text-xs shadow-lg shadow-[#FF6B00]/25 flex items-center justify-center gap-1.5 active:scale-95 transition-all hover:brightness-110 cursor-pointer"
                   >
-                    Ro'yxatdan o'tish
-                    <ArrowRight className="ml-2 h-5 w-5" />
+                    <span>Ro'yxatdan o'tish</span>
+                    <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
                   </Link>
                   <Link
                     href="/feed"
-                    className="w-full sm:w-auto inline-flex items-center justify-center rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md px-8 py-4 text-base font-bold text-white hover:bg-white/20 hover:scale-[1.02] transition-all duration-200"
+                    className="flex-1 h-12 rounded-2xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-white font-extrabold text-xs backdrop-blur-md flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
                   >
-                    Zallarni Ko'rish
+                    <Compass className="w-3.5 h-3.5 text-primary" />
+                    <span>Zallarni ko'rish</span>
                   </Link>
                 </div>
               </div>
             </section>
 
-            <section className="py-16 bg-foreground/3 dark:bg-white/3">
-              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div className="text-center max-w-2xl mx-auto mb-12">
-                  <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-                    Biz nimalarni taklif qilamiz?
-                  </h2>
-                  <p className="mt-4 text-foreground/70">
-                    Sizning barcha shodiyonalaringiz va bayramlaringiz uchun mukammal yechimlar.
-                  </p>
-                </div>
+            <section className="py-12 px-4 bg-foreground/[0.02] dark:bg-white/[0.02]">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-black tracking-tight text-foreground dark:text-white">
+                  Biz nimalarni taklif qilamiz?
+                </h2>
+                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 max-w-xs mx-auto leading-relaxed">
+                  Sizning barcha shodiyonalaringiz va bayramlaringiz uchun mukammal yechimlar.
+                </p>
+              </div>
 
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                  {welcomeCategories.map((cat, idx) => (
-                    <div
-                      key={idx}
-                      className="group relative rounded-3xl bg-brand-light-card dark:bg-brand-dark-card border border-brand-light-border dark:border-brand-dark-border p-6 shadow-sm hover:shadow-md hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 hover:-translate-y-1"
-                    >
-                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-3xl mb-5 group-hover:scale-110 transition-transform duration-300">
+              {/* 2x2 Clean Responsive Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {welcomeCategories.map((cat, idx) => (
+                  <Link
+                    key={idx}
+                    href="/feed"
+                    className="group relative rounded-[24px] bg-white dark:bg-[#2C2C2E] border border-zinc-200/80 dark:border-white/5 p-4 shadow-sm hover:shadow-md hover:border-primary/40 dark:hover:border-primary/40 transition-all duration-300 active:scale-[0.98] flex flex-col justify-between text-left"
+                  >
+                    <div>
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-2xl mb-3 group-hover:scale-110 transition-transform duration-300">
                         {cat.icon}
                       </div>
-                      <h3 className="text-xl font-bold mb-2 text-foreground group-hover:text-primary transition-colors duration-200">
+                      <h3 className="text-sm font-extrabold text-foreground dark:text-white group-hover:text-primary transition-colors duration-200 leading-tight mb-1">
                         {cat.title}
                       </h3>
-                      <p className="text-sm text-foreground/60 mb-4">{cat.desc}</p>
-                      <span className="inline-flex items-center rounded-lg bg-foreground/5 dark:bg-white/5 px-2.5 py-1 text-xs font-bold text-primary">
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-snug mb-3">
+                        {cat.desc}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="inline-flex items-center rounded-lg bg-primary/10 px-2.5 py-1 text-[10px] font-black text-primary">
                         {cat.count}
                       </span>
                     </div>
-                  ))}
-                </div>
+                  </Link>
+                ))}
               </div>
             </section>
           </main>
 
-          <footer className="border-t border-brand-light-border dark:border-brand-dark-border py-8 text-center text-sm text-foreground/50">
+          <footer className="border-t border-brand-light-border dark:border-brand-dark-border py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
             <p>© 2026 BAZMLY. Barcha huquqlar himoyalangan.</p>
           </footer>
         </div>

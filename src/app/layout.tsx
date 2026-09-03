@@ -40,7 +40,7 @@ export default function RootLayout({
             <SplashScreen />
             
             {/* Centered Mobile-only Device Mock Frame */}
-            <div className="w-full max-w-md min-h-screen bg-[var(--background)] flex flex-col shadow-2xl relative border-x border-brand-light-border dark:border-brand-dark-border pb-16">
+            <div className="w-full max-w-md min-h-screen bg-[var(--background)] flex flex-col shadow-2xl relative border-x border-brand-light-border dark:border-brand-dark-border">
               {children}
               <BottomNav />
             </div>
