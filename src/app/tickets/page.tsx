@@ -57,17 +57,50 @@ export default function VouchersAndTicketsPage() {
 
   // Load Bookings
   const loadBookings = useCallback(async () => {
-    if (!isAuthenticated) return;
     setLoadingBookings(true);
     try {
-      const list = await bookingService.getMyBookings();
-      setBookings(list || []);
+      let serverList: BookingListItem[] = [];
+      if (isAuthenticated) {
+        serverList = await bookingService.getMyBookings().catch(() => []);
+      }
+      const localRaw = typeof window !== "undefined" ? localStorage.getItem("my_local_bookings") : null;
+      const localList: BookingListItem[] = localRaw ? JSON.parse(localRaw) : [];
+
+      const seen = new Set<number>();
+      const combined: BookingListItem[] = [];
+      for (const item of [...localList, ...serverList]) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id);
+          combined.push(item);
+        }
+      }
+      setBookings(combined);
     } catch {
       setBookings([]);
     } finally {
       setLoadingBookings(false);
     }
   }, [isAuthenticated]);
+
+  const handleCancelBooking = async (bookingId: number) => {
+    if (!confirm("Ushbu band qilishni bekor qilishni xohlaysizmi?")) return;
+    try {
+      if (isAuthenticated) {
+        await bookingService.cancelBooking(bookingId, "Mijoz talabiga binoan").catch(() => {});
+      }
+      const localRaw = localStorage.getItem("my_local_bookings");
+      if (localRaw) {
+        const localList: BookingListItem[] = JSON.parse(localRaw);
+        const updated = localList.map((b) => (b.id === bookingId ? { ...b, status: "cancelled" as any } : b));
+        localStorage.setItem("my_local_bookings", JSON.stringify(updated));
+      }
+      setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: "cancelled" as any } : b)));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      alert("Bekor qilishda xatolik yuz berdi");
+    }
+  };
 
   useEffect(() => {
     if (activeTab === "tickets") {
@@ -268,13 +301,25 @@ export default function VouchersAndTicketsPage() {
                     <span className={isDark ? "text-white" : "text-zinc-800"}>{b.guests_count} kishi</span>
                     {b.table_number && <span> ({b.table_number}-stol)</span>}
                   </div>
-                  <button
-                    onClick={() => setSelectedBookingQr(b)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FF6B00] text-white text-xs font-bold active:scale-95 transition-all cursor-pointer"
-                  >
-                    <QrCode className="h-4 w-4" />
-                    <span>QR Chipta</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {b.status !== "cancelled" && (
+                      <button
+                        type="button"
+                        onClick={() => handleCancelBooking(b.id)}
+                        className="px-2.5 py-1.5 rounded-xl border border-red-500/20 text-red-400 hover:bg-red-500/10 text-[11px] font-bold transition-all cursor-pointer"
+                      >
+                        Bekor qilish
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBookingQr(b)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FF6B00] text-white text-xs font-bold active:scale-95 transition-all cursor-pointer"
+                    >
+                      <QrCode className="h-4 w-4" />
+                      <span>QR Chipta</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ))
@@ -386,9 +431,16 @@ export default function VouchersAndTicketsPage() {
               <QrCode className="h-44 w-44 text-zinc-900" />
             </div>
 
-            <p className="text-[11px] font-bold text-zinc-500 text-center">
-              Restoran administratoriga ushbu QR kodni ko'rsating
-            </p>
+            <div className="text-center space-y-1">
+              <p className="text-[11px] font-bold text-zinc-500">
+                Restoran administratoriga ushbu QR kodni ko'rsating
+              </p>
+              <p className="text-[10px] font-mono font-bold text-[#FF6B00] break-all">
+                {typeof window !== "undefined" && localStorage.getItem("my_booking_tokens")
+                  ? JSON.parse(localStorage.getItem("my_booking_tokens") || "{}")[selectedBookingQr.id] || `BZMLY-TICKET-${selectedBookingQr.id}`
+                  : `BZMLY-TICKET-${selectedBookingQr.id}`}
+              </p>
+            </div>
 
             <button
               onClick={() => setSelectedBookingQr(null)}

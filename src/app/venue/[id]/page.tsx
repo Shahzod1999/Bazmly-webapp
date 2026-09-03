@@ -22,14 +22,26 @@ import {
   X,
   Loader2,
   Phone,
+  Clock,
+  Layers,
+  Wifi,
+  Car,
+  Music,
+  Sparkles,
+  Info,
+  CalendarDays,
+  Users,
+  ChevronDown,
 } from "lucide-react";
 import {
   venueService,
   engagementService,
   geoService,
   VenueDetailRead,
+  VenueZoneRead,
   MenuItemListItem,
   ReviewListItem,
+  ReviewAggregateRead,
 } from "@/lib/api";
 
 interface Props {
@@ -45,13 +57,19 @@ const DEFAULT_GALLERY = [
   "/images/home/rest6.png",
 ];
 
+const DEFAULT_CATEGORIES = ["Barchasi", "Asosiy taomlar", "Kaboblar", "Fast food", "Ichimliklar"];
+
 const DEFAULT_FOODS = [
-  { id: 1, name: "Jizz", img: "/images/home/food1.png", price: "500 000 so'm", priceVal: 500000 },
-  { id: 2, name: "Qozon kabob", img: "/images/home/food2.png", price: "300 000 so'm", priceVal: 300000 },
-  { id: 3, name: "Manti", img: "/images/home/food3.png", price: "100 000 so'm", priceVal: 100000 },
-  { id: 4, name: "Stake", img: "/images/home/food4.png", price: "180 000 so'm", priceVal: 180000 },
-  { id: 5, name: "Tandir go'sht", img: "/images/home/top.png", price: "250 000 so'm", priceVal: 250000 },
-  { id: 6, name: "Somsa", img: "/images/home/tuyxona1.png", price: "15 000 so'm", priceVal: 15000 },
+  { id: 1, name: "Qozon kabob", category: "Asosiy taomlar", img: "/images/home/food2.png", price: "300 000 so'm", priceVal: 300000 },
+  { id: 2, name: "To'y Oshi (Maxsus)", category: "Asosiy taomlar", img: "/images/home/top.png", price: "80 000 so'm", priceVal: 80000 },
+  { id: 3, name: "Jizz (Go'shtli)", category: "Asosiy taomlar", img: "/images/home/food1.png", price: "500 000 so'm", priceVal: 500000 },
+  { id: 4, name: "Manti (Go'shtli)", category: "Asosiy taomlar", img: "/images/home/food3.png", price: "100 000 so'm", priceVal: 100000 },
+  { id: 5, name: "Stake T-Bone", category: "Asosiy taomlar", img: "/images/home/food4.png", price: "180 000 so'm", priceVal: 180000 },
+  { id: 6, name: "Tandir go'sht", category: "Asosiy taomlar", img: "/images/home/top.png", price: "250 000 so'm", priceVal: 250000 },
+  { id: 7, name: "Gijduvon shashlik", category: "Kaboblar", img: "/images/home/rest2.png", price: "35 000 so'm", priceVal: 35000 },
+  { id: 8, name: "Qiyma kabob", category: "Kaboblar", img: "/images/home/rest3.png", price: "28 000 so'm", priceVal: 28000 },
+  { id: 9, name: "Somsa tandir", category: "Fast food", img: "/images/home/tuyxona1.png", price: "15 000 so'm", priceVal: 15000 },
+  { id: 10, name: "Choynak choy (ko'k/qora)", category: "Ichimliklar", img: "/images/home/rest4.png", price: "12 000 so'm", priceVal: 12000 },
 ];
 
 export default function VenueDetailPage({ params }: Props) {
@@ -64,25 +82,29 @@ export default function VenueDetailPage({ params }: Props) {
   // Real backend states
   const [venueDetail, setVenueDetail] = useState<VenueDetailRead | null>(null);
   const [loading, setLoading] = useState(true);
+  const [zones, setZones] = useState<VenueZoneRead[]>([]);
+  const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItemListItem[]>([]);
+  const [activeCategory, setActiveCategory] = useState("Barchasi");
   const [activeImage, setActiveImage] = useState<string>("/images/home/top.png");
   const [isSaved, setIsSaved] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
+  const [showHoursDropdown, setShowHoursDropdown] = useState(false);
 
   // Interactive party/time picker state
   const [showPartySheet, setShowPartySheet] = useState(false);
-  const [showLocationSearch, setShowLocationSearch] = useState(false);
   const [partySize, setPartySize] = useState(5);
   const [selectedDay, setSelectedDay] = useState("Jum");
-  const [selectedTime, setSelectedTime] = useState("23:30");
+  const [selectedTime, setSelectedTime] = useState("20:00");
 
   // Reviews state
   const [showReviews, setShowReviews] = useState(false);
   const [newReviewText, setNewReviewText] = useState("");
   const [newRating, setNewRating] = useState(5);
   const [reviewsList, setReviewsList] = useState<ReviewListItem[]>([]);
+  const [aggregate, setAggregate] = useState<ReviewAggregateRead | null>(null);
 
   // Drag to Scroll Spinner Picker Logic
   const dayScrollRef = useRef<HTMLDivElement>(null);
@@ -151,7 +173,7 @@ export default function VenueDetailPage({ params }: Props) {
   const handleTimeScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
     const index = Math.round(el.scrollTop / 40);
-    const times = ["22:30", "23:00", "23:30", "00:00"];
+    const times = ["18:00", "19:00", "20:00", "21:00", "22:00", "23:00"];
     if (index >= 0 && index < times.length) {
       setSelectedTime(times[index]);
     }
@@ -167,7 +189,7 @@ export default function VenueDetailPage({ params }: Props) {
           dayScrollRef.current.scrollTop = dayIdx * 40;
         }
 
-        const times = ["22:30", "23:00", "23:30", "00:00"];
+        const times = ["18:00", "19:00", "20:00", "21:00", "22:00", "23:00"];
         const timeIdx = times.indexOf(selectedTime);
         if (timeIdx !== -1 && timeScrollRef.current) {
           timeScrollRef.current.scrollTop = timeIdx * 40;
@@ -176,31 +198,50 @@ export default function VenueDetailPage({ params }: Props) {
     }
   }, [showPartySheet, selectedDay, selectedTime]);
 
-  // Load Real Venue Details, Menu, and Reviews from Backend
+  // Load Real Venue Details, Zones, Menu, and Reviews from Backend
   const loadVenueData = useCallback(async () => {
     setLoading(true);
     try {
-      const detail = await venueService.getVenueDetail(id);
+      const [detail, z, menu, revs, agg] = await Promise.all([
+        venueService.getVenueDetail(id),
+        venueService.getZones(id).catch(() => []),
+        venueService.getMenu(id).catch(() => []),
+        venueService.getReviews(id).catch(() => ({ items: [], total: 0 })),
+        venueService.getReviewAggregate(id).catch(() => null),
+      ]);
+
       setVenueDetail(detail);
-      if (detail.photos && detail.photos.length > 0) {
+      setZones(z || []);
+      setMenuItems(menu || []);
+      setReviewsList(revs.items || []);
+      setAggregate(agg);
+
+      if (detail?.photos && detail.photos.length > 0) {
         setActiveImage(detail.photos[0].url);
+      } else {
+        const isToyxona =
+          detail?.venue.name.toLowerCase().includes("to'yxona") ||
+          detail?.venue.name.toLowerCase().includes("zali");
+        setActiveImage(isToyxona ? "/images/home/tuyxona1.png" : "/images/home/top.png");
       }
-    } catch {
-      console.warn("Venue detail fetch fallback");
+    } catch (err) {
+      console.warn("Venue detail fetch error:", err);
+    } finally {
+      setLoading(false);
     }
 
-    try {
-      const menu = await venueService.getMenu(id);
-      setMenuItems(menu || []);
-    } catch {}
-
-    try {
-      const revs = await venueService.getReviews(id);
-      setReviewsList(revs.items || []);
-    } catch {}
-
-    setLoading(false);
-  }, [id]);
+    if (isAuthenticated) {
+      engagementService
+        .getFavorites()
+        .then((favs) => {
+          const match = (favs || []).some(
+            (f) => ((f as any).venue_id || f.venue?.id) === Number(id)
+          );
+          setIsSaved(match);
+        })
+        .catch(() => {});
+    }
+  }, [id, isAuthenticated]);
 
   useEffect(() => {
     loadVenueData();
@@ -214,15 +255,23 @@ export default function VenueDetailPage({ params }: Props) {
     }));
   };
 
-  const allFoodsList = menuItems.length > 0
-    ? menuItems.map((m, idx) => ({
-        id: m.id,
-        name: m.name,
-        img: m.photo_url || DEFAULT_FOODS[idx % DEFAULT_FOODS.length].img,
-        price: `${Number(m.effective_price || 50000).toLocaleString()} ${m.currency || "so'm"}`,
-        priceVal: Number(m.effective_price || 50000),
-      }))
-    : DEFAULT_FOODS;
+  const allFoodsList =
+    menuItems.length > 0
+      ? menuItems.map((m, idx) => ({
+          id: m.id,
+          name: m.name,
+          category: "Asosiy taomlar",
+          img: m.photo_url || DEFAULT_FOODS[idx % DEFAULT_FOODS.length].img,
+          price: `${Number(m.effective_price || 50000).toLocaleString()} ${m.currency || "so'm"}`,
+          priceVal: Number(m.effective_price || 50000),
+        }))
+      : DEFAULT_FOODS;
+
+  const filteredFoods = allFoodsList.filter((f) => {
+    const matchCategory = activeCategory === "Barchasi" || f.category === activeCategory;
+    const matchSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchCategory && matchSearch;
+  });
 
   const cartTotal = Object.entries(selectedItems).reduce((sum, [name, qty]) => {
     const item = allFoodsList.find((f) => f.name === name);
@@ -276,7 +325,7 @@ export default function VenueDetailPage({ params }: Props) {
 
     setReviewsList([fakeRev, ...reviewsList]);
     setNewReviewText("");
-    setToastMessage("Sharhingiz muvaffaqiyatli qo'shildi!");
+    setToastMessage("Sharhingiz qabul qilindi!");
   };
 
   // Toast auto-dismiss helper
@@ -287,18 +336,32 @@ export default function VenueDetailPage({ params }: Props) {
     }
   }, [toastMessage]);
 
-  const venueName = venueDetail?.venue.name || "Rest One";
+  const venueName = venueDetail?.venue.name || "Muassasa";
   const venueLocation = venueDetail?.venue.street
     ? `${venueDetail.venue.street}, ${venueDetail.venue.house_number}`
-    : "Navoiy, O'zbekiston ko'chasi 27 - uy";
-  const venueRating = venueDetail?.venue.rating_avg && Number(venueDetail.venue.rating_avg) > 0
-    ? venueDetail.venue.rating_avg
-    : "4.8";
-  const reviewsCount = venueDetail?.venue.reviews_count || reviewsList.length || 356;
-  const isDeposit = venueDetail?.venue.requires_deposit ?? true;
-  const gallery = venueDetail?.photos && venueDetail.photos.length > 0
-    ? venueDetail.photos.map((p) => p.url)
-    : DEFAULT_GALLERY;
+    : "Toshkent shahri";
+  const venueRating =
+    aggregate?.average && Number(aggregate.average) > 0
+      ? aggregate.average
+      : venueDetail?.venue.rating_avg && Number(venueDetail.venue.rating_avg) > 0
+      ? venueDetail.venue.rating_avg
+      : "4.8";
+  const reviewsCount =
+    aggregate?.count || venueDetail?.venue.reviews_count || reviewsList.length || 0;
+  const isDeposit = venueDetail?.venue.requires_deposit ?? false;
+  const gallery =
+    venueDetail?.photos && venueDetail.photos.length > 0
+      ? venueDetail.photos.map((p) => p.url)
+      : DEFAULT_GALLERY;
+
+  if (loading) {
+    return (
+      <div className="flex flex-col flex-1 bg-[var(--background)] min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="text-xs text-zinc-400 mt-2">Ma'lumotlar yuklanmoqda...</span>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -319,7 +382,7 @@ export default function VenueDetailPage({ params }: Props) {
         <img
           src={activeImage}
           alt={venueName}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover transition-transform duration-500"
         />
 
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
@@ -355,7 +418,7 @@ export default function VenueDetailPage({ params }: Props) {
 
         {/* Bottom Small Image Gallery previews */}
         <div className="absolute bottom-4 left-6 right-6 z-20 flex justify-center">
-          <div className="bg-white/95 rounded-[18px] p-[5px] flex gap-[6px] items-center shadow-[0_8px_30px_rgba(0,0,0,0.16)] border border-white/40 max-w-[340px] overflow-x-auto scrollbar-none">
+          <div className="bg-white/95 dark:bg-zinc-900/90 rounded-[18px] p-[5px] flex gap-[6px] items-center shadow-[0_8px_30px_rgba(0,0,0,0.16)] border border-white/40 dark:border-white/10 max-w-[340px] overflow-x-auto scrollbar-none backdrop-blur-md">
             {gallery.map((thumb, idx) => {
               const isSel = activeImage === thumb;
               return (
@@ -380,13 +443,13 @@ export default function VenueDetailPage({ params }: Props) {
       </div>
 
       {/* Main Details Body */}
-      <main className="flex-1 px-6 py-6 pb-24 flex flex-col gap-6 max-w-md mx-auto w-full text-left">
+      <main className="flex-1 px-6 py-6 pb-28 flex flex-col gap-6 max-w-md mx-auto w-full text-left">
         {/* Info detail block */}
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 text-[#10B981] font-bold rounded-lg px-2.5 py-1 text-xs">
               <Percent className="h-3.5 w-3.5" />
-              <span>10% chegirma</span>
+              <span>10% maxsus chegirma</span>
             </div>
 
             {/* Rating row link */}
@@ -397,7 +460,7 @@ export default function VenueDetailPage({ params }: Props) {
                 isDark ? "text-white/70 hover:text-white" : "text-zinc-650 hover:text-zinc-950"
               }`}
             >
-              <span className="text-[#FFB800]">★</span>
+              <Star className="h-3.5 w-3.5 fill-[#FFB800] text-[#FFB800]" />
               <span>
                 {venueRating} ({reviewsCount} ta sharh)
               </span>
@@ -421,23 +484,25 @@ export default function VenueDetailPage({ params }: Props) {
             </div>
           </div>
 
-          {/* Distance Row */}
-          <div className="flex justify-between items-center">
+          {/* Metadata Row: Capacity & Deposit */}
+          <div className="flex justify-between items-center text-xs">
             <div
-              className={`flex items-center gap-2 text-xs font-semibold ${
+              className={`flex items-center gap-1.5 font-semibold ${
                 isDark ? "text-white/70" : "text-zinc-600"
               }`}
             >
-              <Compass className={`h-4 w-4 ${isDark ? "text-white/40" : "text-zinc-455"}`} />
-              <span>1 km uzoqda</span>
+              <Users className="h-4 w-4 text-[#FF6B00]" />
+              <span>Sig'imi: {venueDetail?.venue.total_seats ? `${venueDetail.venue.total_seats} ta o'rin` : "120 o'rin"}</span>
             </div>
 
             {/* Deposit Badges */}
-            {isDeposit && (
+            {isDeposit ? (
               <div className="flex items-center gap-1 bg-green-500/10 border border-green-500/20 text-[#10B981] font-bold rounded-lg px-2.5 py-1 text-[10px] uppercase tracking-wider">
                 <Wallet className="h-3.5 w-3.5 shrink-0" />
                 <span>Depozitlik</span>
               </div>
+            ) : (
+              <span className="text-[11px] font-bold text-zinc-400">Depozitsiz</span>
             )}
           </div>
 
@@ -458,13 +523,155 @@ export default function VenueDetailPage({ params }: Props) {
               }`}
             >
               <Phone className={`h-4 w-4 shrink-0 ${isDark ? "text-white/30" : "text-zinc-400"}`} />
-              <span>{venueDetail.venue.phone}</span>
+              <a href={`tel:${venueDetail.venue.phone}`} className="hover:text-primary transition-colors">
+                {venueDetail.venue.phone}
+              </a>
             </div>
           )}
         </div>
 
+        {/* Zallar va Zonalar Section */}
+        {zones.length > 0 && (
+          <div className="space-y-3 pt-1 text-left">
+            <div className="flex items-center justify-between">
+              <h3 className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? "text-white/60" : "text-zinc-500"}`}>
+                Zallar va Zonalar
+              </h3>
+              <span className="text-[11px] text-primary font-bold">
+                {selectedZoneId ? zones.find((z) => z.id === selectedZoneId)?.name : "Barcha zonalar"}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
+              <button
+                type="button"
+                onClick={() => setSelectedZoneId(null)}
+                className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shrink-0 cursor-pointer border ${
+                  selectedZoneId === null
+                    ? "bg-[#FF6B00] border-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/20"
+                    : isDark
+                    ? "bg-[#393939] border-white/5 text-white/70 hover:text-white"
+                    : "bg-zinc-100 border-zinc-200 text-zinc-700 hover:text-zinc-900"
+                }`}
+              >
+                Umumiy
+              </button>
+              {zones.map((zone) => {
+                const isSelected = selectedZoneId === zone.id;
+                return (
+                  <button
+                    key={zone.id}
+                    type="button"
+                    onClick={() => setSelectedZoneId(zone.id)}
+                    className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shrink-0 cursor-pointer border flex items-center gap-1.5 ${
+                      isSelected
+                        ? "bg-[#FF6B00] border-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/20"
+                        : isDark
+                        ? "bg-[#393939] border-white/5 text-white/70 hover:text-white"
+                        : "bg-zinc-100 border-zinc-200 text-zinc-700 hover:text-zinc-900"
+                    }`}
+                  >
+                    <Layers className="h-3.5 w-3.5" />
+                    <span>{zone.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Ish tartibi / Working Hours */}
+        {venueDetail?.working_hours && venueDetail.working_hours.length > 0 && (
+          <div
+            className={`rounded-2xl border p-4 transition-all text-left ${
+              isDark ? "bg-[#393939]/60 border-white/5" : "bg-zinc-50 border-zinc-200"
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => setShowHoursDropdown(!showHoursDropdown)}
+              className="w-full flex items-center justify-between cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <Clock className="h-4 w-4 text-[#FF6B00]" />
+                <div>
+                  <span className={`text-xs font-bold block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                    Ish tartibi: 09:00 — 23:00
+                  </span>
+                  <span className="text-[10px] text-zinc-400">
+                    {venueDetail.is_open_now ? "🟢 Hozir ochiq" : "🔴 Hozir yopiq"} • Barcha kunlar
+                  </span>
+                </div>
+              </div>
+              <ChevronDown
+                className={`h-4 w-4 transition-transform text-zinc-400 ${
+                  showHoursDropdown ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {showHoursDropdown && (
+              <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-white/5 space-y-1.5 text-xs animate-fade-in">
+                {venueDetail.working_hours.map((wh, idx) => {
+                  const dayNames = [
+                    "Dushanba",
+                    "Seshanba",
+                    "Chorshanba",
+                    "Payshanba",
+                    "Juma",
+                    "Shanba",
+                    "Yakshanba",
+                  ];
+                  const dName = dayNames[wh.weekday] || `Kun ${wh.weekday + 1}`;
+                  const openStr = wh.opens_at ? wh.opens_at.slice(0, 5) : "09:00";
+                  const closeStr = wh.closes_at ? wh.closes_at.slice(0, 5) : "23:00";
+                  return (
+                    <div key={idx} className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
+                      <span>{dName}</span>
+                      <span className="font-semibold text-foreground dark:text-white">
+                        {wh.is_closed ? "Dam olish" : `${openStr} - ${closeStr}`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Qulayliklar / Amenities */}
+        <div className="space-y-2.5 text-left">
+          <h3 className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? "text-white/60" : "text-zinc-500"}`}>
+            Qulayliklar
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: "Bepul Wi-Fi", icon: Wifi },
+              { label: "Avtoturargoh", icon: Car },
+              { label: "Jonli musiqa", icon: Music },
+              { label: "VIP xonalar", icon: Sparkles },
+              { label: "Konditsioner", icon: Info },
+            ].map((amenity, idx) => {
+              const IconComp = amenity.icon;
+              return (
+                <div
+                  key={idx}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold ${
+                    isDark
+                      ? "bg-[#393939] border-white/5 text-white/80"
+                      : "bg-white border-zinc-200 text-zinc-700"
+                  }`}
+                >
+                  <IconComp className="h-3.5 w-3.5 text-[#FF6B00]" />
+                  <span>{amenity.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Menyu Section */}
-        <div className="space-y-4 pt-2">
+        <div className="space-y-4 pt-2 text-left">
           <div className={`border-b ${isDark ? "border-white/5" : "border-zinc-100"}`}>
             <div className="inline-block border-b-2 border-primary pb-2 pr-4 text-sm font-bold text-primary tracking-wide">
               Menyu
@@ -473,7 +680,7 @@ export default function VenueDetailPage({ params }: Props) {
 
           <div className="flex justify-between items-center text-xs font-bold">
             <span className={isDark ? "text-white/90" : "text-zinc-850"}>
-              {`Menu (${allFoodsList.length} mahsulot)`}
+              {`Taomlar (${filteredFoods.length} mahsulot)`}
             </span>
           </div>
 
@@ -493,104 +700,134 @@ export default function VenueDetailPage({ params }: Props) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Taom qidirish..."
-              className={`w-full pl-3 pr-4 py-4 bg-transparent text-sm font-semibold outline-none ${
+              className={`w-full pl-3 pr-4 py-3.5 bg-transparent text-sm font-semibold outline-none ${
                 isDark ? "text-white placeholder:text-white/30" : "text-zinc-950 placeholder:text-zinc-400"
               }`}
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="pr-4 text-zinc-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Categories Horizontal Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
+            {DEFAULT_CATEGORIES.map((cat) => {
+              const isActive = activeCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer border ${
+                    isActive
+                      ? "bg-[#FF6B00] border-[#FF6B00] text-white shadow-sm"
+                      : isDark
+                      ? "bg-[#393939] border-white/5 text-white/60 hover:text-white"
+                      : "bg-white border-zinc-200 text-zinc-700 hover:text-zinc-950"
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
           </div>
 
           {/* Food Grid Display */}
           <div className="grid grid-cols-2 gap-4 pt-1">
-            {allFoodsList
-              .filter((f) => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((food, idx) => {
-                const qty = selectedItems[food.name] || 0;
-                return (
+            {filteredFoods.map((food, idx) => {
+              const qty = selectedItems[food.name] || 0;
+              return (
+                <div
+                  key={idx}
+                  className={`border rounded-3xl p-3 flex flex-col gap-3 relative text-left animate-fade-in ${
+                    isDark
+                      ? "bg-[#393939] border-white/5 shadow-lg"
+                      : "bg-white border-zinc-200 shadow-sm"
+                  }`}
+                >
                   <div
-                    key={idx}
-                    className={`border rounded-3xl p-3 flex flex-col gap-3 relative text-left animate-fade-in ${
-                      isDark
-                        ? "bg-[#393939] border-white/5 shadow-lg"
-                        : "bg-white border-zinc-200 shadow-sm"
+                    className={`w-full aspect-[1.15/1] rounded-2xl overflow-hidden relative border ${
+                      isDark ? "border-white/5 bg-zinc-800" : "border-zinc-100 bg-zinc-50"
                     }`}
                   >
-                    <div
-                      className={`w-full aspect-[1.15/1] rounded-2xl overflow-hidden relative border ${
-                        isDark ? "border-white/5 bg-zinc-800" : "border-zinc-100 bg-zinc-50"
-                      }`}
-                    >
-                      <img
-                        src={food.img}
-                        alt={food.name}
-                        className="w-full h-full object-cover"
-                      />
+                    <img
+                      src={food.img}
+                      alt={food.name}
+                      className="w-full h-full object-cover"
+                    />
 
-                      {qty > 0 ? (
-                        <div className="absolute bottom-2 right-2 bg-white border border-zinc-200 text-black rounded-full px-2 py-1 flex items-center gap-2 shadow-md z-10 animate-scale-up">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedItems((prev) => {
-                                const next = { ...prev };
-                                if (next[food.name] > 1) next[food.name]--;
-                                else delete next[food.name];
-                                return next;
-                              });
-                            }}
-                            className="w-5 h-5 flex items-center justify-center font-black text-xs text-zinc-500 hover:text-black cursor-pointer active:scale-80 transition-all"
-                          >
-                            <Minus className="h-3 w-3 stroke-[3]" />
-                          </button>
-                          <span className="text-xs font-bold text-zinc-955 select-none min-w-[8px] text-center">
-                            {qty}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleAddItem(food.name)}
-                            className="w-5 h-5 flex items-center justify-center font-black text-xs text-zinc-500 hover:text-black cursor-pointer active:scale-80 transition-all"
-                          >
-                            <Plus className="h-3 w-3 stroke-[3]" />
-                          </button>
-                        </div>
-                      ) : (
+                    {qty > 0 ? (
+                      <div className="absolute bottom-2 right-2 bg-white border border-zinc-200 text-black rounded-full px-2 py-1 flex items-center gap-2 shadow-md z-10 animate-scale-up">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedItems((prev) => {
+                              const next = { ...prev };
+                              if (next[food.name] > 1) next[food.name]--;
+                              else delete next[food.name];
+                              return next;
+                            });
+                          }}
+                          className="w-5 h-5 flex items-center justify-center font-black text-xs text-zinc-500 hover:text-black cursor-pointer active:scale-80 transition-all"
+                        >
+                          <Minus className="h-3 w-3 stroke-[3]" />
+                        </button>
+                        <span className="text-xs font-bold text-zinc-955 select-none min-w-[8px] text-center">
+                          {qty}
+                        </span>
                         <button
                           type="button"
                           onClick={() => handleAddItem(food.name)}
-                          className={`absolute bottom-2 right-2 w-8 h-8 rounded-full shadow-md flex items-center justify-center font-bold hover:scale-105 active:scale-95 transition-all z-10 ${
-                            isDark
-                              ? "bg-[#FF6B00] text-white"
-                              : "bg-white border border-zinc-200 text-zinc-950 cursor-pointer"
-                          }`}
+                          className="w-5 h-5 flex items-center justify-center font-black text-xs text-zinc-500 hover:text-black cursor-pointer active:scale-80 transition-all"
                         >
-                          <Plus className="h-4 w-4 stroke-[3]" />
+                          <Plus className="h-3 w-3 stroke-[3]" />
                         </button>
-                      )}
-                    </div>
-
-                    <div className="space-y-1 pr-0.5">
-                      <p className={`text-sm font-black tracking-wide ${isDark ? "text-white" : "text-zinc-955"}`}>
-                        {food.price}
-                      </p>
-                      <p className={`text-xs font-semibold ${isDark ? "text-white/50" : "text-zinc-500"}`}>
-                        {food.name}
-                      </p>
-                    </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleAddItem(food.name)}
+                        className={`absolute bottom-2 right-2 w-8 h-8 rounded-full shadow-md flex items-center justify-center font-bold hover:scale-105 active:scale-95 transition-all z-10 ${
+                          isDark
+                            ? "bg-[#FF6B00] text-white"
+                            : "bg-white border border-zinc-200 text-zinc-950 cursor-pointer"
+                        }`}
+                      >
+                        <Plus className="h-4 w-4 stroke-[3]" />
+                      </button>
+                    )}
                   </div>
-                );
-              })}
+
+                  <div className="space-y-1 pr-0.5">
+                    <p className={`text-sm font-black tracking-wide ${isDark ? "text-white" : "text-zinc-955"}`}>
+                      {food.price}
+                    </p>
+                    <p className={`text-xs font-semibold truncate ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                      {food.name}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </main>
 
       {/* Sticky Bottom Action Panel */}
       <div
-        className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto border-t px-6 py-4.5 z-40 ${
-          isDark ? "bg-black/85 border-white/5" : "bg-white border-zinc-150 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]"
+        className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto border-t px-6 py-4 z-40 ${
+          isDark ? "bg-black/90 border-white/5" : "bg-white border-zinc-200 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]"
         }`}
       >
         <button
           onClick={() => setShowPartySheet(true)}
-          className="w-full py-4 rounded-[24px] bg-[#FF5A00] hover:bg-[#E05000] text-white font-bold text-sm tracking-wide flex items-center justify-center gap-2 transition-all active:scale-98 shadow-lg shadow-[#FF6B00]/20 cursor-pointer"
+          className="w-full py-4 rounded-[24px] bg-[#FF5A00] hover:bg-[#E05000] text-white font-extrabold text-sm tracking-wide flex items-center justify-center gap-2 transition-all active:scale-98 shadow-lg shadow-[#FF6B00]/25 cursor-pointer"
         >
           <span>{cartTotal > 0 ? `${formatPrice(cartTotal)} • Bron qilish` : "Bron qilish"}</span>
         </button>
@@ -627,52 +864,80 @@ export default function VenueDetailPage({ params }: Props) {
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 py-6 pb-20 flex flex-col gap-4">
-            {reviewsList.map((rev, idx) => (
-              <div
-                key={rev.id || idx}
-                className={`border rounded-[22px] p-5 relative text-left animate-slide-up ${
-                  isDark ? "bg-[#393939] border-white/5 shadow-lg" : "bg-white border-zinc-200 shadow-sm"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-3.5">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-9 h-9 rounded-full overflow-hidden shrink-0 border ${
-                        isDark ? "border-white/10 bg-zinc-800" : "border-zinc-200 bg-zinc-50"
-                      }`}
-                    >
-                      <img
-                        src={rev.author.avatar_url || "/images/home/rest1.png"}
-                        className="w-full h-full object-cover"
-                        alt={rev.author.first_name}
-                      />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`text-sm font-bold tracking-wide ${isDark ? "text-white" : "text-zinc-950"}`}>
-                          {rev.author.first_name} {rev.author.last_name || ""}
-                        </span>
-                        {rev.is_verified && (
-                          <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-[4px] font-semibold tracking-wide ml-1">
-                            Tasdiqlangan
+            {/* Aggregate Score Header */}
+            <div
+              className={`p-4 rounded-2xl border flex items-center justify-between text-left ${
+                isDark ? "bg-[#393939] border-white/5" : "bg-zinc-50 border-zinc-200"
+              }`}
+            >
+              <div>
+                <span className="text-3xl font-black text-[#FFB800]">{venueRating}</span>
+                <span className="text-xs text-zinc-400 block mt-0.5">5.0 ballik shkalada</span>
+              </div>
+              <div className="text-right">
+                <div className="flex items-center gap-0.5 text-[#FFB800] justify-end">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-[#FFB800] text-[#FFB800]" />
+                  ))}
+                </div>
+                <span className="text-xs font-bold text-zinc-400 block mt-0.5">
+                  {reviewsCount} ta umumiy baho
+                </span>
+              </div>
+            </div>
+
+            {reviewsList.length === 0 ? (
+              <div className="py-12 text-center text-zinc-400 text-xs">
+                Hozircha sharhlar mavjud emas. Birinchi bo'lib sharh qoldiring!
+              </div>
+            ) : (
+              reviewsList.map((rev, idx) => (
+                <div
+                  key={rev.id || idx}
+                  className={`border rounded-[22px] p-5 relative text-left animate-slide-up ${
+                    isDark ? "bg-[#393939] border-white/5 shadow-lg" : "bg-white border-zinc-200 shadow-sm"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3.5">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-9 h-9 rounded-full overflow-hidden shrink-0 border ${
+                          isDark ? "border-white/10 bg-zinc-800" : "border-zinc-200 bg-zinc-50"
+                        }`}
+                      >
+                        <img
+                          src={rev.author.avatar_url || "/images/home/rest1.png"}
+                          className="w-full h-full object-cover"
+                          alt={rev.author.first_name}
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-sm font-bold tracking-wide ${isDark ? "text-white" : "text-zinc-950"}`}>
+                            {rev.author.first_name} {rev.author.last_name || ""}
                           </span>
-                        )}
+                          {rev.is_verified && (
+                            <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-[4px] font-semibold tracking-wide ml-1">
+                              Tasdiqlangan
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-0.5 text-[#FFB800]">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <span key={i} className="text-xs">
+                          {i < rev.rating ? "★" : "☆"}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-0.5 text-[#FFB800]">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <span key={i} className="text-xs">
-                        {i < rev.rating ? "★" : "☆"}
-                      </span>
-                    ))}
-                  </div>
+                  <p className={`text-xs font-medium leading-relaxed ${isDark ? "text-white/80" : "text-zinc-850"}`}>
+                    {rev.comment}
+                  </p>
                 </div>
-                <p className={`text-xs font-medium leading-relaxed ${isDark ? "text-white/80" : "text-zinc-850"}`}>
-                  {rev.comment}
-                </p>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
           <div
@@ -682,7 +947,7 @@ export default function VenueDetailPage({ params }: Props) {
           >
             <form
               onSubmit={handleSendReview}
-              className={`flex items-center rounded-full px-4 py-3.5 gap-3 border transition-all ${
+              className={`flex items-center rounded-full px-4 py-3 gap-3 border transition-all ${
                 isDark
                   ? "bg-[#393939] border-white/5 focus-within:border-[#FF6B00]/40"
                   : "bg-zinc-100 border-transparent focus-within:bg-zinc-200/50"
@@ -735,22 +1000,31 @@ export default function VenueDetailPage({ params }: Props) {
               </button>
             </div>
 
+            {/* Selected Zone notice if any */}
+            {selectedZoneId && (
+              <div className="flex items-center gap-2 p-3 rounded-2xl bg-[#FF6B00]/10 border border-[#FF6B00]/20 text-xs font-bold text-[#FF6B00]">
+                <Layers className="h-4 w-4" />
+                <span>Tanlangan zona: {zones.find((z) => z.id === selectedZoneId)?.name}</span>
+              </div>
+            )}
+
             <div className="space-y-3.5 text-left">
               <h3 className={`font-extrabold text-sm ${isDark ? "text-white" : "text-zinc-950"}`}>
                 Mehmonlar soni
               </h3>
-              <div className="flex justify-between items-center gap-3">
-                {[1, 2, 3, 4, 5, 8].map((num) => {
+              <div className="flex justify-between items-center gap-2.5">
+                {[1, 2, 4, 6, 8, 10].map((num) => {
                   const isSelected = partySize === num;
                   return (
                     <button
                       key={num}
+                      type="button"
                       onClick={() => setPartySize(num)}
-                      className={`flex-1 py-3 text-base font-extrabold rounded-2xl transition-all cursor-pointer ${
+                      className={`flex-1 py-3 text-sm font-extrabold rounded-2xl transition-all cursor-pointer ${
                         isSelected
-                          ? "border border-[#FF5A00] bg-[#FF5A00]/5 text-[#FF5A00] scale-105"
+                          ? "border border-[#FF5A00] bg-[#FF5A00]/10 text-[#FF5A00] scale-105"
                           : isDark
-                          ? "border border-white/5 bg-zinc-900 text-white"
+                          ? "border border-white/5 bg-zinc-900 text-white hover:bg-zinc-800"
                           : "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50"
                       }`}
                     >
@@ -844,7 +1118,9 @@ export default function VenueDetailPage({ params }: Props) {
                 setShowPartySheet(false);
                 const itemsQuery = encodeURIComponent(JSON.stringify(selectedItems));
                 router.push(
-                  `/booking/${id}?total=${cartTotal}&guests=${partySize}&date=${selectedDay}&time=${selectedTime}&items=${itemsQuery}`
+                  `/booking/${id}?total=${cartTotal}&guests=${partySize}&zone_id=${
+                    selectedZoneId || ""
+                  }&date=${selectedDay}&time=${selectedTime}&items=${itemsQuery}`
                 );
               }}
               className="w-full py-4.5 bg-[#FF5A00] hover:bg-[#E05000] text-white font-extrabold text-sm rounded-[24px] shadow-lg shadow-[#FF5A00]/20 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 cursor-pointer"

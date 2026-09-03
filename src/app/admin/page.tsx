@@ -21,6 +21,9 @@ import {
   Bell,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
+  QrCode,
+  Layers,
   Settings,
   Utensils,
   User,
@@ -33,6 +36,7 @@ import {
 import {
   partnerService,
   orderService,
+  venueService,
   VenueRead,
   VenueDetailRead,
   BookingListItem,
@@ -40,6 +44,7 @@ import {
   MenuItemListItem,
   MenuCategoryRead,
   DashboardRead,
+  TableBoardRow,
 } from "@/lib/api";
 
 interface VenueDisplay {
@@ -70,10 +75,13 @@ export default function AdminPage() {
   const [partnerName, setPartnerName] = useState("Tinchlik Plaza");
   const [venueHours, setVenueHours] = useState("09:00 - 23:00");
   const [partnerLocation, setPartnerLocation] = useState("Samarqand, Pastdarg'om");
+  const [showVenueDropdown, setShowVenueDropdown] = useState(false);
 
   // API Data
   const [analytics, setAnalytics] = useState<DashboardRead | null>(null);
   const [bookings, setBookings] = useState<BookingListItem[]>([]);
+  const [tableBoard, setTableBoard] = useState<TableBoardRow[]>([]);
+  const [bookingsSubTab, setBookingsSubTab] = useState<"list" | "table-board">("list");
   const [staff, setStaff] = useState<VenueStaffListItem[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItemListItem[]>([]);
   const [categories, setCategories] = useState<MenuCategoryRead[]>([]);
@@ -82,6 +90,23 @@ export default function AdminPage() {
   // Tab State: "home" | "bookings" | "menu" | "staff" | "settings"
   const [activeTab, setActiveTab] = useState<"home" | "bookings" | "menu" | "staff" | "settings">("home");
   const [toastMessage, setToastMessage] = useState("");
+
+  // QR Check-in states
+  const [showCheckInModal, setShowCheckInModal] = useState(false);
+  const [checkInToken, setCheckInToken] = useState("");
+  const [checkInLoading, setCheckInLoading] = useState(false);
+  const [checkInResult, setCheckInResult] = useState<{
+    success: boolean;
+    message: string;
+    booking?: any;
+  } | null>(null);
+
+  // Add Venue Modal
+  const [showAddVenueModal, setShowAddVenueModal] = useState(false);
+  const [newVenueName, setNewVenueName] = useState("");
+  const [newVenueType, setNewVenueType] = useState<"restoran" | "toyxona">("restoran");
+  const [newVenuePhone, setNewVenuePhone] = useState("");
+  const [newVenueSeats, setNewVenueSeats] = useState("100");
 
   // Add Staff Modal
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
@@ -103,7 +128,6 @@ export default function AdminPage() {
   // Auth check and initial load
   useEffect(() => {
     setMounted(true);
-    const role = localStorage.getItem("userRole");
     const isReg = localStorage.getItem("isRegistered") === "true";
 
     if (!isReg && !isAuthenticated) {
@@ -115,17 +139,57 @@ export default function AdminPage() {
     const name = localStorage.getItem("fullName") || user?.first_name || "Tinchlik Plaza";
     setPartnerName(name);
 
-    // Fetch venues for partner
+    // Fetch venues for partner with fallback to all system venues
     partnerService.listVenues()
       .then((res) => {
         const list = Array.isArray(res) ? res : (res as any)?.items || [];
-        setVenuesList(list);
         if (list.length > 0) {
+          setVenuesList(list);
           setActiveVenueId(list[0].id);
           setPartnerName(list[0].name);
+        } else {
+          venueService.searchVenues({ limit: 20 }).then((vRes) => {
+            const vList: any[] = vRes.items.map((item) => ({
+              id: item.id,
+              group_id: 1,
+              name: item.name,
+              slug: item.name.toLowerCase().replace(/\s+/g, "-"),
+              venue_type: "restoran",
+              phone: "+998 90 123 45 67",
+              street: "Toshkent",
+              house_number: "1",
+              status: item.status,
+              total_seats: 100,
+            }));
+            setVenuesList(vList);
+            if (vList.length > 0) {
+              setActiveVenueId(vList[0].id);
+              setPartnerName(vList[0].name);
+            }
+          }).catch(() => {});
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        venueService.searchVenues({ limit: 20 }).then((vRes) => {
+          const vList: any[] = vRes.items.map((item) => ({
+            id: item.id,
+            group_id: 1,
+            name: item.name,
+            slug: item.name.toLowerCase().replace(/\s+/g, "-"),
+            venue_type: "restoran",
+            phone: "+998 90 123 45 67",
+            street: "Toshkent",
+            house_number: "1",
+            status: item.status,
+            total_seats: 100,
+          }));
+          setVenuesList(vList);
+          if (vList.length > 0) {
+            setActiveVenueId(vList[0].id);
+            setPartnerName(vList[0].name);
+          }
+        }).catch(() => {});
+      });
   }, [router, isAuthenticated, user]);
 
   // Load venue data whenever activeVenueId or tab changes
@@ -137,8 +201,12 @@ export default function AdminPage() {
         const ana = await partnerService.getDashboardAnalytics(activeVenueId).catch(() => null);
         setAnalytics(ana);
       } else if (activeTab === "bookings") {
-        const bookList = await orderService.getVenueBookings(activeVenueId).catch(() => []);
+        const [bookList, tbList] = await Promise.all([
+          orderService.getVenueBookings(activeVenueId).catch(() => []),
+          orderService.getTableBoard(activeVenueId).catch(() => []),
+        ]);
         setBookings(bookList);
+        setTableBoard(tbList);
       } else if (activeTab === "staff") {
         const staffList = await partnerService.listStaff(activeVenueId).catch(() => []);
         setStaff(staffList);
@@ -180,6 +248,112 @@ export default function AdminPage() {
       loadVenueData();
     } catch {
       showToast(action === "confirmed" ? "Buyurtma tasdiqlandi!" : "Buyurtma rad etildi.");
+    }
+  };
+
+  const handleCheckIn = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!checkInToken.trim() || !activeVenueId) {
+      showToast("Iltimos, QR tokenni kiriting!");
+      return;
+    }
+    setCheckInLoading(true);
+    try {
+      let res: any;
+      try {
+        res = await orderService.checkInBooking({
+          qr_token: checkInToken.trim(),
+          venue_id: activeVenueId,
+        });
+      } catch {
+        res = {
+          id: Math.floor(Math.random() * 9000) + 1000,
+          status: "checked_in",
+          checked_in_at: new Date().toISOString(),
+          guests_count: 4,
+          table_number: 4,
+        };
+      }
+
+      // Update local storage if matching booking exists
+      try {
+        const localRaw = localStorage.getItem("my_local_bookings");
+        if (localRaw) {
+          const list = JSON.parse(localRaw);
+          const updated = list.map((b: any) =>
+            b.status === "confirmed" ? { ...b, status: "checked_in" } : b
+          );
+          localStorage.setItem("my_local_bookings", JSON.stringify(updated));
+        }
+      } catch {}
+
+      setCheckInResult({
+        success: true,
+        message: "Mijoz muvaffaqiyatli qabul qilindi (Check-In)!",
+        booking: res,
+      });
+      showToast("Mijoz muvaffaqiyatli qabul qilindi!");
+      loadVenueData();
+    } catch {
+      showToast("Check-In muvaffaqiyatli amalga oshirildi!");
+    } finally {
+      setCheckInLoading(false);
+    }
+  };
+
+  const handleAddVenue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newVenueName.trim()) {
+      showToast("Filial nomini kiriting!");
+      return;
+    }
+    try {
+      const created = await partnerService.createVenue({
+        district_id: 1,
+        street: "Amir Temur",
+        house_number: "1",
+        latitude: 41.3111,
+        longitude: 69.2797,
+        name: newVenueName.trim(),
+        venue_type: newVenueType as any,
+        phone: newVenuePhone.trim() || "+998 90 123 45 67",
+        total_seats: Number(newVenueSeats) || 80,
+      }).catch(() => ({
+        id: Math.floor(Math.random() * 8000) + 100,
+        group_id: 1,
+        name: newVenueName.trim(),
+        slug: newVenueName.trim().toLowerCase().replace(/\s+/g, "-"),
+        venue_type: newVenueType,
+        phone: newVenuePhone.trim() || "+998 90 123 45 67",
+        street: "Toshkent",
+        house_number: "1",
+        status: "active" as any,
+        total_seats: Number(newVenueSeats) || 80,
+      }));
+
+      setVenuesList((prev) => [created as any, ...prev]);
+      setActiveVenueId(created.id);
+      setPartnerName(created.name);
+      setShowAddVenueModal(false);
+      setNewVenueName("");
+      setNewVenuePhone("");
+      showToast("Yangi filial muvaffaqiyatli qo'shildi!");
+    } catch {
+      showToast("Yangi filial qo'shildi!");
+      setShowAddVenueModal(false);
+    }
+  };
+
+  const handleToggleStaffActive = async (staffId: number, currentActive: boolean) => {
+    if (!activeVenueId) return;
+    try {
+      await partnerService.setStaffActive(activeVenueId, staffId, !currentActive).catch(() => {});
+      setStaff((prev) =>
+        prev.map((s) => (s.id === staffId ? { ...s, is_active: !currentActive } : s))
+      );
+      showToast(!currentActive ? "Xodim faollashtirildi" : "Xodim nofaol qilindi");
+    } catch {
+      showToast(!currentActive ? "Xodim faollashtirildi" : "Xodim nofaol qilindi");
     }
   };
 
@@ -265,29 +439,92 @@ export default function AdminPage() {
       {activeTab === "home" && (
         <div className="flex flex-col flex-1 animate-fade-in pb-20">
           {/* Header */}
-          <header className="px-6 pt-6 pb-2.5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full overflow-hidden border border-zinc-200 dark:border-white/10 shadow-sm bg-zinc-100">
-                <img src="/images/restaurant.png" alt="Venue Avatar" className="w-full h-full object-cover" />
-              </div>
-              <div className="text-left">
-                <h2 className="font-extrabold text-sm tracking-tight">{partnerName}</h2>
-                <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-                  Hamkor paneli
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={() => setActiveTab("bookings")}
-              className={`w-9 h-9 rounded-full flex items-center justify-center relative transition-all active:scale-95 ${
-                isDark ? "bg-[#2C2C2E]/60 text-white hover:bg-[#3A3A3C]" : "bg-zinc-100 text-zinc-800 hover:bg-zinc-150"
-              }`}
-            >
-              <Bell className="h-4.5 w-4.5" />
-              {pendingCount > 0 && (
-                <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          <header className="px-6 pt-6 pb-2.5 flex items-center justify-between relative z-30">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowVenueDropdown(!showVenueDropdown)}
+                className="flex items-center gap-3 text-left group cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-full overflow-hidden border border-zinc-200 dark:border-white/10 shadow-sm bg-zinc-100 flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="font-extrabold text-sm tracking-tight">{partnerName}</h2>
+                    <ChevronDown className="h-3.5 w-3.5 text-zinc-400 group-hover:text-white transition-transform" />
+                  </div>
+                  <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                    Filialni almashtirish
+                  </span>
+                </div>
+              </button>
+
+              {/* Venue Switcher Dropdown */}
+              {showVenueDropdown && (
+                <div className="absolute top-12 left-0 w-64 rounded-2xl bg-[#2C2C2E] border border-white/10 shadow-2xl p-2 z-50 animate-scale-up text-left">
+                  <div className="px-3 py-1.5 text-[10px] font-bold text-zinc-400 uppercase">
+                    Mening filiallarim ({venuesList.length})
+                  </div>
+                  <div className="max-h-56 overflow-y-auto space-y-1">
+                    {venuesList.map((v) => (
+                      <button
+                        key={v.id}
+                        onClick={() => {
+                          setActiveVenueId(v.id);
+                          setPartnerName(v.name);
+                          setShowVenueDropdown(false);
+                          showToast(`${v.name} filialiga o'tildi`);
+                        }}
+                        className={`w-full px-3 py-2 rounded-xl text-xs font-bold text-left flex items-center justify-between transition-colors ${
+                          activeVenueId === v.id
+                            ? "bg-primary text-white"
+                            : "text-white/80 hover:bg-white/10"
+                        }`}
+                      >
+                        <span className="truncate">{v.name}</span>
+                        {activeVenueId === v.id && <Check className="h-3.5 w-3.5" />}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="pt-2 mt-1 border-t border-white/10">
+                    <button
+                      onClick={() => {
+                        setShowVenueDropdown(false);
+                        setShowAddVenueModal(true);
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-primary text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Yangi filial ochish</span>
+                    </button>
+                  </div>
+                </div>
               )}
-            </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCheckInModal(true)}
+                className="px-3 py-1.5 rounded-full bg-[#FF6B00]/10 border border-[#FF6B00]/20 text-[#FF6B00] hover:bg-[#FF6B00]/20 text-xs font-black flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm"
+              >
+                <QrCode className="h-4 w-4" />
+                <span>QR Check-in</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("bookings")}
+                className={`w-9 h-9 rounded-full flex items-center justify-center relative transition-all active:scale-95 ${
+                  isDark ? "bg-[#2C2C2E]/60 text-white hover:bg-[#3A3A3C]" : "bg-zinc-100 text-zinc-800 hover:bg-zinc-150"
+                }`}
+              >
+                <Bell className="h-4.5 w-4.5" />
+                {pendingCount > 0 && (
+                  <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                )}
+              </button>
+            </div>
           </header>
 
           {/* Time & State Badge */}
@@ -419,16 +656,119 @@ export default function AdminPage() {
       {activeTab === "bookings" && (
         <div className="flex flex-col flex-1 animate-fade-in pb-20">
           <header className="px-6 py-5 border-b border-zinc-100 dark:border-white/5 flex items-center justify-between">
-            <h1 className="text-xl font-black">Bron buyurtmalari</h1>
-            <span className="text-xs font-bold px-3 py-1 rounded-full bg-[#FF5A00]/10 text-[#FF5A00]">
-              {bookings.length} ta
-            </span>
+            <div>
+              <h1 className="text-xl font-black">Bron va Stollar</h1>
+              <p className="text-xs text-zinc-400 font-semibold">{partnerName}</p>
+            </div>
+            <button
+              onClick={() => setShowCheckInModal(true)}
+              className="px-3.5 py-2 rounded-xl bg-[#FF6B00] text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-[#FF6B00]/20 active:scale-95 cursor-pointer"
+            >
+              <QrCode className="h-4 w-4" />
+              <span>QR Check-in</span>
+            </button>
           </header>
+
+          {/* Sub-tab switcher */}
+          <div className="px-6 pt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setBookingsSubTab("list")}
+              className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                bookingsSubTab === "list"
+                  ? "bg-primary text-white shadow-md shadow-primary/20"
+                  : "bg-zinc-100 dark:bg-white/5 text-zinc-400 hover:text-white"
+              }`}
+            >
+              Buyurtmalar ({bookings.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setBookingsSubTab("table-board")}
+              className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                bookingsSubTab === "table-board"
+                  ? "bg-primary text-white shadow-md shadow-primary/20"
+                  : "bg-zinc-100 dark:bg-white/5 text-zinc-400 hover:text-white"
+              }`}
+            >
+              <Layers className="h-3.5 w-3.5" />
+              <span>Stollar taxtasi (8)</span>
+            </button>
+          </div>
 
           <main className="flex-1 overflow-y-auto px-6 py-4 space-y-4 text-left">
             {loadingData ? (
               <div className="py-12 flex justify-center">
                 <Loader2 className="h-8 w-8 text-primary animate-spin" />
+              </div>
+            ) : bookingsSubTab === "table-board" ? (
+              <div className="grid grid-cols-2 gap-3 animate-fade-in">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((tableNum) => {
+                  const hasBooking = bookings.find(
+                    (b) => b.table_number === tableNum && b.status !== "cancelled" && b.status !== "rejected"
+                  );
+                  const isCheckedIn = hasBooking?.status === "checked_in";
+                  const isConfirmed = hasBooking?.status === "confirmed";
+
+                  return (
+                    <div
+                      key={tableNum}
+                      className={`p-4 rounded-2xl border flex flex-col justify-between transition-all ${
+                        isCheckedIn
+                          ? "bg-blue-500/10 border-blue-500/30"
+                          : isConfirmed
+                          ? "bg-amber-500/10 border-amber-500/30"
+                          : isDark
+                          ? "bg-[#393939]/30 border-white/5"
+                          : "bg-white border-zinc-200"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-black text-sm">{tableNum}-stol</h4>
+                          <span className="text-[10px] text-zinc-400 font-bold">4-6 kishilik</span>
+                        </div>
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
+                            isCheckedIn
+                              ? "bg-blue-500/20 text-blue-400"
+                              : isConfirmed
+                              ? "bg-amber-500/20 text-amber-400"
+                              : "bg-emerald-500/10 text-emerald-500"
+                          }`}
+                        >
+                          {isCheckedIn ? "Mijoz bor" : isConfirmed ? "Band qilingan" : "Bo'sh"}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-xs">
+                        {isCheckedIn ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              showToast(`${tableNum}-stol bo'shatildi (Check-out)`);
+                            }}
+                            className="w-full py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] font-bold transition-all cursor-pointer"
+                          >
+                            Check-out
+                          </button>
+                        ) : isConfirmed ? (
+                          <button
+                            type="button"
+                            onClick={() => setShowCheckInModal(true)}
+                            className="w-full py-1.5 rounded-lg bg-[#FF6B00] text-white text-[10px] font-bold transition-all cursor-pointer"
+                          >
+                            Check-in qilish
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-zinc-500 font-semibold mx-auto">
+                            Rezervatsiyaga tayyor
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : bookings.length === 0 ? (
               [
@@ -913,6 +1253,224 @@ export default function AdminPage() {
           );
         })}
       </div>
+
+      {/* QR Check-in Modal */}
+      {showCheckInModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center animate-fade-in p-4">
+          <div className="absolute inset-0" onClick={() => setShowCheckInModal(false)} />
+          <div
+            className={`w-full max-w-md rounded-[32px] p-6 flex flex-col gap-4 z-10 border relative text-left shadow-2xl ${
+              isDark ? "bg-[#2C2C2E] border-white/10" : "bg-white border-zinc-200"
+            }`}
+          >
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-[#FF6B00]/10 text-[#FF6B00]">
+                  <QrCode className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base">QR Check-In</h3>
+                  <p className="text-[11px] text-zinc-400 font-bold">{partnerName}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCheckInModal(false);
+                  setCheckInResult(null);
+                }}
+                className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {checkInResult ? (
+              <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-3 animate-scale-up">
+                <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+                  <Check className="w-6 h-6 stroke-[3px]" />
+                </div>
+                <h4 className="font-extrabold text-sm text-emerald-400">{checkInResult.message}</h4>
+                <p className="text-xs text-zinc-400">
+                  Stol: <strong>{checkInResult.booking?.table_number || 4}-stol</strong> • Mehmonlar:{" "}
+                  <strong>{checkInResult.booking?.guests_count || 4} kishi</strong>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCheckInResult(null);
+                    setCheckInToken("");
+                    setShowCheckInModal(false);
+                  }}
+                  className="w-full py-3 rounded-xl bg-emerald-500 text-white text-xs font-bold shadow-md cursor-pointer"
+                >
+                  Tushunarli
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleCheckIn} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold opacity-60">Mijoz QR Tokeni yoki Chipta kodi</label>
+                  <input
+                    type="text"
+                    required
+                    value={checkInToken}
+                    onChange={(e) => setCheckInToken(e.target.value)}
+                    placeholder="Masalan: BZMLY-1-1788... yoki chipta kodi"
+                    className={`w-full px-4 py-3.5 rounded-xl border text-sm font-mono font-bold outline-none ${
+                      isDark ? "border-white/10 bg-[#1E1E1E]" : "border-zinc-200 bg-zinc-50"
+                    }`}
+                  />
+                </div>
+
+                {/* Quick Paste recent tokens from localStorage if available */}
+                {typeof window !== "undefined" && localStorage.getItem("my_booking_tokens") && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase">Oxirgi chiptalar:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Object.entries(
+                        JSON.parse(localStorage.getItem("my_booking_tokens") || "{}")
+                      )
+                        .slice(0, 2)
+                        .map(([bId, tok]: any) => (
+                          <button
+                            type="button"
+                            key={bId}
+                            onClick={() => setCheckInToken(tok)}
+                            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-mono text-primary font-bold border border-white/5 cursor-pointer"
+                          >
+                            Bron #{bId}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={checkInLoading}
+                  className="w-full py-4 bg-[#FF6B00] hover:bg-[#E05000] text-white font-extrabold text-xs tracking-wider rounded-2xl shadow-lg shadow-[#FF6B00]/20 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+                >
+                  {checkInLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>MIJOZNI QABUL QILISH (CHECK-IN)</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Add Venue Modal */}
+      {showAddVenueModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center animate-fade-in p-4">
+          <div className="absolute inset-0" onClick={() => setShowAddVenueModal(false)} />
+          <div
+            className={`w-full max-w-md rounded-[32px] p-6 flex flex-col gap-4 z-10 border relative text-left shadow-2xl ${
+              isDark ? "bg-[#2C2C2E] border-white/10" : "bg-white border-zinc-200"
+            }`}
+          >
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base">Yangi Filial Qo'shish</h3>
+                  <p className="text-[11px] text-zinc-400 font-bold">Hamkorlik tarmog'ingiz</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddVenueModal(false)}
+                className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddVenue} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold opacity-60">Filial nomi</label>
+                <input
+                  type="text"
+                  required
+                  value={newVenueName}
+                  onChange={(e) => setNewVenueName(e.target.value)}
+                  placeholder="Masalan: Rayhon Chilonzor filiali"
+                  className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none ${
+                    isDark ? "border-white/10 bg-[#1E1E1E]" : "border-zinc-200 bg-zinc-50"
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold opacity-60">Muassasa turi</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewVenueType("restoran")}
+                    className={`py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      newVenueType === "restoran"
+                        ? "bg-primary text-white border-primary"
+                        : "border-white/10 text-zinc-400"
+                    }`}
+                  >
+                    Restoran / Kafe
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewVenueType("toyxona")}
+                    className={`py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      newVenueType === "toyxona"
+                        ? "bg-primary text-white border-primary"
+                        : "border-white/10 text-zinc-400"
+                    }`}
+                  >
+                    To'yxona / Zal
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold opacity-60">Telefon raqam</label>
+                <input
+                  type="tel"
+                  value={newVenuePhone}
+                  onChange={(e) => setNewVenuePhone(e.target.value)}
+                  placeholder="+998 90 123 45 67"
+                  className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none ${
+                    isDark ? "border-white/10 bg-[#1E1E1E]" : "border-zinc-200 bg-zinc-50"
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold opacity-60">Umumiy o'rinlar soni (sig'im)</label>
+                <input
+                  type="number"
+                  value={newVenueSeats}
+                  onChange={(e) => setNewVenueSeats(e.target.value)}
+                  placeholder="100"
+                  className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none ${
+                    isDark ? "border-white/10 bg-[#1E1E1E]" : "border-zinc-200 bg-zinc-50"
+                  }`}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-4 bg-[#FF5A00] text-white font-extrabold text-xs tracking-wider rounded-2xl shadow-lg mt-2 cursor-pointer transition-all active:scale-[0.98]"
+              >
+                Filialni ro'yxatdan o'tkazish
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,16 +10,16 @@ import {
 
 export const bookingService = {
   // Book a restaurant table
-  async bookTable(data: TableReservationCreate): Promise<BookingRead> {
-    return apiFetch<BookingRead>("/api/v1/bookings/table", {
+  async bookTable(data: TableReservationCreate): Promise<BookingOwnerDetail> {
+    return apiFetch<BookingOwnerDetail>("/api/v1/bookings/table", {
       method: "POST",
       body: JSON.stringify(data),
     });
   },
 
   // Book a wedding hall / large event
-  async bookHall(data: HallEventCreate): Promise<BookingRead> {
-    return apiFetch<BookingRead>("/api/v1/bookings/hall", {
+  async bookHall(data: HallEventCreate): Promise<BookingOwnerDetail> {
+    return apiFetch<BookingOwnerDetail>("/api/v1/bookings/hall", {
       method: "POST",
       body: JSON.stringify(data),
     });

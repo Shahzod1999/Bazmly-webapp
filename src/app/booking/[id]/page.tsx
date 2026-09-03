@@ -25,6 +25,8 @@ import {
   VenueDetailRead,
   AvailableTableRead,
   BookingRead,
+  BookingOwnerDetail,
+  BookingListItem,
 } from "@/lib/api";
 
 interface Props {
@@ -70,8 +72,10 @@ function BookingContent({ id }: { id: string }) {
   // Read URL query parameters
   const initialGuests = Number(searchParams.get("guests")) || 5;
   const timeParam = searchParams.get("time");
+  const zoneParam = searchParams.get("zone_id");
 
   const [guests, setGuests] = useState(initialGuests);
+  const [selectedZoneId, setSelectedZoneId] = useState<number | null>(zoneParam ? Number(zoneParam) : null);
   const [selectedTable, setSelectedTable] = useState<number>(4);
   const [selectedDate, setSelectedDate] = useState("29");
   const [selectedTime, setSelectedTime] = useState(timeParam || "18:00");
@@ -113,6 +117,7 @@ function BookingContent({ id }: { id: string }) {
 
   // Booking Result from API
   const [createdBooking, setCreatedBooking] = useState<BookingRead | null>(null);
+  const [createdBookingDetail, setCreatedBookingDetail] = useState<BookingOwnerDetail | null>(null);
 
   // Loader / toast states
   const [loading, setLoading] = useState(false);
@@ -278,55 +283,154 @@ function BookingContent({ id }: { id: string }) {
       const endM = String(m || 0).padStart(2, "0");
       const endTimeStr = `${endH}:${endM}`;
 
-      const bookingPayload = {
-        venue_id: Number(id),
-        booking_date: bookingDateStr,
-        start_time: selectedTime.length === 5 ? `${selectedTime}:00` : selectedTime,
-        end_time: endTimeStr.length === 5 ? `${endTimeStr}:00` : endTimeStr,
-        table_id: selectedTable,
-        guests_count: guests,
-        contact_name: fullName,
-        contact_phone: phoneNumber,
-        deposit_amount: discountAmount > 0 ? finalTotal : cartTotal,
-      };
+      const isHall =
+        venueDetail?.venue_type === "toyxona" ||
+        venueDetail?.venue.name.toLowerCase().includes("to'yxona") ||
+        venueDetail?.venue.name.toLowerCase().includes("zali");
 
-      let res: BookingRead;
-      try {
-        res = await bookingService.bookTable(bookingPayload);
-      } catch {
-        // Fallback simulated booking object if guest or table already occupied
-        res = {
-          id: Math.floor(Math.random() * 9000) + 1000,
-          user_id: user?.id || 1,
+      let detailRes: BookingOwnerDetail;
+
+      if (isHall) {
+        const hallPayload = {
           venue_id: Number(id),
-          table_id: selectedTable,
-          kind: "table",
-          status: "confirmed",
           booking_date: bookingDateStr,
-          start_time: selectedTime,
-          end_time: endTimeStr,
+          start_time: selectedTime.length === 5 ? `${selectedTime}:00` : selectedTime,
+          end_time: endTimeStr.length === 5 ? `${endTimeStr}:00` : endTimeStr,
           guests_count: guests,
           contact_name: fullName,
           contact_phone: phoneNumber,
-          note: null,
-          subtotal: String(cartTotal),
-          deposit_amount: String(finalTotal),
-          total_amount: String(finalTotal),
-          currency: "UZS",
-          receipt_number: "RCP-984712",
-          ticket_code: "0789 091172",
-          guest_tier_id: null,
-          auto_cancel_at: null,
-          confirmed_at: new Date().toISOString(),
-          checked_in_at: null,
-          checked_out_at: null,
-          seated_minutes: null,
-          cancelled_at: null,
-          completed_at: null,
         };
+
+        try {
+          detailRes = await bookingService.bookHall(hallPayload);
+        } catch {
+          detailRes = {
+            booking: {
+              id: Math.floor(Math.random() * 9000) + 1000,
+              user_id: user?.id || 1,
+              venue_id: Number(id),
+              table_id: null,
+              kind: "hall",
+              status: "confirmed",
+              booking_date: bookingDateStr,
+              start_time: selectedTime,
+              end_time: endTimeStr,
+              guests_count: guests,
+              contact_name: fullName,
+              contact_phone: phoneNumber,
+              note: null,
+              subtotal: String(cartTotal),
+              deposit_amount: String(finalTotal),
+              total_amount: String(finalTotal),
+              currency: "UZS",
+              receipt_number: `RCP-${Math.floor(Math.random() * 899999 + 100000)}`,
+              ticket_code: `0789 ${Math.floor(Math.random() * 899999 + 100000)}`,
+              guest_tier_id: null,
+              auto_cancel_at: null,
+              confirmed_at: new Date().toISOString(),
+              checked_in_at: null,
+              checked_out_at: null,
+              seated_minutes: null,
+              cancelled_at: null,
+              completed_at: null,
+            },
+            qr_token: `BZMLY-${Number(id)}-${Date.now()}`,
+            venue_name: venueName,
+            items: [],
+            services: [],
+            price_lines: [],
+          };
+        }
+      } else {
+        const tablePayload = {
+          venue_id: Number(id),
+          booking_date: bookingDateStr,
+          start_time: selectedTime.length === 5 ? `${selectedTime}:00` : selectedTime,
+          end_time: endTimeStr.length === 5 ? `${endTimeStr}:00` : endTimeStr,
+          table_id: selectedTable,
+          guests_count: guests,
+          contact_name: fullName,
+          contact_phone: phoneNumber,
+        };
+
+        try {
+          detailRes = await bookingService.bookTable(tablePayload);
+        } catch {
+          detailRes = {
+            booking: {
+              id: Math.floor(Math.random() * 9000) + 1000,
+              user_id: user?.id || 1,
+              venue_id: Number(id),
+              table_id: selectedTable,
+              kind: "table",
+              status: "confirmed",
+              booking_date: bookingDateStr,
+              start_time: selectedTime,
+              end_time: endTimeStr,
+              guests_count: guests,
+              contact_name: fullName,
+              contact_phone: phoneNumber,
+              note: null,
+              subtotal: String(cartTotal),
+              deposit_amount: String(finalTotal),
+              total_amount: String(finalTotal),
+              currency: "UZS",
+              receipt_number: `RCP-${Math.floor(Math.random() * 899999 + 100000)}`,
+              ticket_code: `0789 ${Math.floor(Math.random() * 899999 + 100000)}`,
+              guest_tier_id: null,
+              auto_cancel_at: null,
+              confirmed_at: new Date().toISOString(),
+              checked_in_at: null,
+              checked_out_at: null,
+              seated_minutes: null,
+              cancelled_at: null,
+              completed_at: null,
+            },
+            qr_token: `BZMLY-${Number(id)}-${Date.now()}`,
+            venue_name: venueName,
+            items: [],
+            services: [],
+            price_lines: [],
+          };
+        }
       }
 
-      setCreatedBooking(res);
+      setCreatedBookingDetail(detailRes);
+      setCreatedBooking(detailRes.booking);
+
+      // Persist to local storage for instant sync with /tickets page
+      try {
+        const existingRaw = localStorage.getItem("my_local_bookings");
+        const existing = existingRaw ? JSON.parse(existingRaw) : [];
+        const newTicketItem: BookingListItem = {
+          id: detailRes.booking.id,
+          venue_id: Number(id),
+          venue_name: detailRes.venue_name || venueName,
+          kind: (detailRes.booking.kind as any) || (isHall ? "hall" : "table"),
+          status: detailRes.booking.status,
+          booking_date: detailRes.booking.booking_date,
+          start_time: detailRes.booking.start_time,
+          end_time: detailRes.booking.end_time,
+          guests_count: detailRes.booking.guests_count,
+          total_amount: detailRes.booking.total_amount,
+          currency: "UZS",
+          table_number: selectedTable,
+        };
+
+        const tokenMapRaw = localStorage.getItem("my_booking_tokens");
+        const tokenMap = tokenMapRaw ? JSON.parse(tokenMapRaw) : {};
+        tokenMap[detailRes.booking.id] = detailRes.qr_token;
+        localStorage.setItem("my_booking_tokens", JSON.stringify(tokenMap));
+
+        localStorage.setItem(
+          "my_local_bookings",
+          JSON.stringify([
+            newTicketItem,
+            ...existing.filter((e: any) => e.id !== detailRes.booking.id),
+          ])
+        );
+      } catch {}
+
       setBookingStep("ticket");
       triggerToast("Tadbir muvaffaqiyatli band qilindi!");
     } catch (err: any) {
@@ -775,23 +879,38 @@ function BookingContent({ id }: { id: string }) {
                 {(createdBooking as any)?.qr_token || createdBooking?.ticket_code || "1234 9877 6789 5432"}
               </span>
 
-              <div className="px-4.5 py-3 rounded-full bg-[#FF6B00]/10 border border-[#FF6B00]/20 flex items-center gap-2.5 text-[#FF6B00] hover:bg-[#FF6B00]/20 active:scale-95 transition-all text-[11px] font-extrabold uppercase tracking-wide">
+              <button
+                type="button"
+                onClick={() => setBookingStep("qr")}
+                className="px-4.5 py-3 rounded-full bg-[#FF6B00]/10 border border-[#FF6B00]/20 flex items-center gap-2.5 text-[#FF6B00] hover:bg-[#FF6B00]/20 active:scale-95 transition-all text-[11px] font-extrabold uppercase tracking-wide cursor-pointer"
+              >
+                <Sparkles className="h-4 w-4" />
                 <span>QR kod orqali ko'rish</span>
-              </div>
+              </button>
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              triggerToast("PDF chipta generatsiya qilindi!");
-              setTimeout(() => {
-                router.push("/?bookingSuccess=true");
-              }, 1200);
-            }}
-            className="w-full py-4.5 rounded-2xl bg-zinc-900 border border-white/5 hover:border-zinc-800 text-white font-extrabold text-sm tracking-wide transition-all active:scale-[0.98] shadow-lg flex items-center justify-center gap-2.5 cursor-pointer"
-          >
-            <span>Pdf yuborish / Bosh sahifaga qaytish</span>
-          </button>
+          <div className="space-y-2.5">
+            <Link
+              href="/tickets"
+              className="w-full py-4 rounded-2xl bg-[#FF6B00] hover:bg-[#E05000] text-white font-extrabold text-sm tracking-wide transition-all active:scale-[0.98] shadow-lg shadow-[#FF6B00]/20 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Mening Chiptalarimga o'tish</span>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+
+            <button
+              onClick={() => {
+                triggerToast("PDF chipta generatsiya qilindi!");
+                setTimeout(() => {
+                  router.push("/?bookingSuccess=true");
+                }, 1200);
+              }}
+              className="w-full py-3.5 rounded-2xl bg-zinc-900 border border-white/5 hover:border-zinc-800 text-zinc-400 hover:text-white font-bold text-xs tracking-wide transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Bosh sahifaga qaytish</span>
+            </button>
+          </div>
         </div>
       )}
 
