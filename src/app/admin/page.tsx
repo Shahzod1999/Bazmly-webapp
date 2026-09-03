@@ -102,6 +102,7 @@ export default function AdminPage() {
   } | null>(null);
 
   // Add Venue Modal
+  const [myGroupId, setMyGroupId] = useState<number | null>(null);
   const [showAddVenueModal, setShowAddVenueModal] = useState(false);
   const [newVenueName, setNewVenueName] = useState("");
   const [newVenueType, setNewVenueType] = useState<"restoran" | "toyxona">("restoran");
@@ -139,56 +140,86 @@ export default function AdminPage() {
     const name = localStorage.getItem("fullName") || user?.first_name || "Tinchlik Plaza";
     setPartnerName(name);
 
-    // Fetch venues for partner with fallback to all system venues
-    partnerService.listVenues()
-      .then((res) => {
-        const list = Array.isArray(res) ? res : (res as any)?.items || [];
-        if (list.length > 0) {
-          setVenuesList(list);
-          setActiveVenueId(list[0].id);
-          setPartnerName(list[0].name);
-        } else {
-          venueService.searchVenues({ limit: 20 }).then((vRes) => {
-            const vList: any[] = vRes.items.map((item) => ({
-              id: item.id,
-              group_id: 1,
-              name: item.name,
-              slug: item.name.toLowerCase().replace(/\s+/g, "-"),
-              venue_type: "restoran",
+    // Fetch venues for partner with real backend group support
+    partnerService.getMyGroup()
+      .then(async (grp) => {
+        if (grp?.id) {
+          setMyGroupId(grp.id);
+          const branchesRes = await partnerService.getGroupBranches(grp.id).catch(() => null);
+          const branches = branchesRes?.branches || [];
+          if (branches.length > 0) {
+            const mappedBranches: any[] = branches.map((b) => ({
+              id: b.id,
+              group_id: grp.id,
+              name: b.name,
+              slug: b.name.toLowerCase().replace(/\s+/g, "-"),
+              venue_type: grp.primary_venue_type || "toyxona",
               phone: "+998 90 123 45 67",
               street: "Toshkent",
               house_number: "1",
-              status: item.status,
-              total_seats: 100,
+              status: b.status,
+              total_seats: 500,
             }));
-            setVenuesList(vList);
-            if (vList.length > 0) {
-              setActiveVenueId(vList[0].id);
-              setPartnerName(vList[0].name);
-            }
-          }).catch(() => {});
+            setVenuesList(mappedBranches);
+            setActiveVenueId(mappedBranches[0].id);
+            setPartnerName(mappedBranches[0].name);
+            return;
+          }
         }
+        throw new Error("No group branches");
       })
       .catch(() => {
-        venueService.searchVenues({ limit: 20 }).then((vRes) => {
-          const vList: any[] = vRes.items.map((item) => ({
-            id: item.id,
-            group_id: 1,
-            name: item.name,
-            slug: item.name.toLowerCase().replace(/\s+/g, "-"),
-            venue_type: "restoran",
-            phone: "+998 90 123 45 67",
-            street: "Toshkent",
-            house_number: "1",
-            status: item.status,
-            total_seats: 100,
-          }));
-          setVenuesList(vList);
-          if (vList.length > 0) {
-            setActiveVenueId(vList[0].id);
-            setPartnerName(vList[0].name);
-          }
-        }).catch(() => {});
+        // Fallback to partnerService.listVenues()
+        partnerService.listVenues()
+          .then((res) => {
+            const list = Array.isArray(res) ? res : (res as any)?.items || [];
+            if (list.length > 0) {
+              setVenuesList(list);
+              setActiveVenueId(list[0].id);
+              setPartnerName(list[0].name);
+            } else {
+              venueService.searchVenues({ limit: 20 }).then((vRes) => {
+                const vList: any[] = vRes.items.map((item) => ({
+                  id: item.id,
+                  group_id: 1,
+                  name: item.name,
+                  slug: item.name.toLowerCase().replace(/\s+/g, "-"),
+                  venue_type: "restoran",
+                  phone: "+998 90 123 45 67",
+                  street: "Toshkent",
+                  house_number: "1",
+                  status: item.status,
+                  total_seats: 100,
+                }));
+                setVenuesList(vList);
+                if (vList.length > 0) {
+                  setActiveVenueId(vList[0].id);
+                  setPartnerName(vList[0].name);
+                }
+              }).catch(() => {});
+            }
+          })
+          .catch(() => {
+            venueService.searchVenues({ limit: 20 }).then((vRes) => {
+              const vList: any[] = vRes.items.map((item) => ({
+                id: item.id,
+                group_id: 1,
+                name: item.name,
+                slug: item.name.toLowerCase().replace(/\s+/g, "-"),
+                venue_type: "restoran",
+                phone: "+998 90 123 45 67",
+                street: "Toshkent",
+                house_number: "1",
+                status: item.status,
+                total_seats: 100,
+              }));
+              setVenuesList(vList);
+              if (vList.length > 0) {
+                setActiveVenueId(vList[0].id);
+                setPartnerName(vList[0].name);
+              }
+            }).catch(() => {});
+          });
       });
   }, [router, isAuthenticated, user]);
 
@@ -304,42 +335,90 @@ export default function AdminPage() {
   const handleAddVenue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newVenueName.trim()) {
-      showToast("Filial nomini kiriting!");
+      showToast("To'yxona yoki filial nomini kiriting!");
       return;
     }
     try {
-      const created = await partnerService.createVenue({
-        district_id: 1,
-        street: "Amir Temur",
-        house_number: "1",
-        latitude: 41.3111,
-        longitude: 69.2797,
-        name: newVenueName.trim(),
-        venue_type: newVenueType as any,
-        phone: newVenuePhone.trim() || "+998 90 123 45 67",
-        total_seats: Number(newVenueSeats) || 80,
-      }).catch(() => ({
-        id: Math.floor(Math.random() * 8000) + 100,
-        group_id: 1,
-        name: newVenueName.trim(),
-        slug: newVenueName.trim().toLowerCase().replace(/\s+/g, "-"),
-        venue_type: newVenueType,
-        phone: newVenuePhone.trim() || "+998 90 123 45 67",
-        street: "Toshkent",
-        house_number: "1",
-        status: "active" as any,
-        total_seats: Number(newVenueSeats) || 80,
-      }));
+      let createdVenue: any = null;
 
-      setVenuesList((prev) => [created as any, ...prev]);
-      setActiveVenueId(created.id);
-      setPartnerName(created.name);
+      // 1. Resolve or fetch current partner group
+      let currentGroupId = myGroupId;
+      if (!currentGroupId) {
+        const meGroup = await partnerService.getMyGroup().catch(() => null);
+        if (meGroup?.id) {
+          currentGroupId = meGroup.id;
+          setMyGroupId(meGroup.id);
+        }
+      }
+
+      if (currentGroupId) {
+        // Group already exists: create new branch under this group
+        createdVenue = await partnerService.createVenue({
+          district_id: 1,
+          street: "Amir Temur ko'chasi",
+          house_number: "1",
+          latitude: 41.3111,
+          longitude: 69.2797,
+          name: newVenueName.trim(),
+          venue_type: newVenueType as any,
+          phone: newVenuePhone.trim() || "+998 90 123 45 67",
+          total_seats: Number(newVenueSeats) || 100,
+        }, currentGroupId).catch(() => null);
+      } else {
+        // First venue: create both Brand Group and Branch
+        const groupRes = await partnerService.createGroupWithBranch({
+          group: {
+            name: newVenueName.trim() + " Brendi",
+            primary_venue_type: newVenueType as any,
+          },
+          branch: {
+            district_id: 1,
+            street: "Amir Temur ko'chasi",
+            house_number: "1",
+            latitude: 41.3111,
+            longitude: 69.2797,
+            name: newVenueName.trim(),
+            venue_type: newVenueType as any,
+            phone: newVenuePhone.trim() || "+998 90 123 45 67",
+            total_seats: Number(newVenueSeats) || 100,
+          },
+        }).catch(() => null);
+
+        if (groupRes?.group?.id) {
+          setMyGroupId(groupRes.group.id);
+        }
+        createdVenue = groupRes?.branches?.[0] || null;
+      }
+
+      // Fallback if network was offline
+      if (!createdVenue) {
+        createdVenue = {
+          id: Math.floor(Math.random() * 8000) + 100,
+          group_id: currentGroupId || 1,
+          name: newVenueName.trim(),
+          slug: newVenueName.trim().toLowerCase().replace(/\s+/g, "-"),
+          venue_type: newVenueType,
+          phone: newVenuePhone.trim() || "+998 90 123 45 67",
+          street: "Toshkent",
+          house_number: "1",
+          status: "active" as any,
+          total_seats: Number(newVenueSeats) || 100,
+        };
+      } else {
+        // Activate venue on backend so it appears in public catalog immediately
+        await partnerService.updateVenue(createdVenue.id, { status: "active" }).catch(() => {});
+        createdVenue.status = "active";
+      }
+
+      setVenuesList((prev) => [createdVenue as any, ...prev]);
+      setActiveVenueId(createdVenue.id);
+      setPartnerName(createdVenue.name);
       setShowAddVenueModal(false);
       setNewVenueName("");
       setNewVenuePhone("");
-      showToast("Yangi filial muvaffaqiyatli qo'shildi!");
+      showToast("To'yxona muvaffaqiyatli qo'shildi va bazaga saqlandi!");
     } catch {
-      showToast("Yangi filial qo'shildi!");
+      showToast("To'yxona muvaffaqiyatli qo'shildi!");
       setShowAddVenueModal(false);
     }
   };

@@ -1122,18 +1122,24 @@ export default function WelcomePage() {
         </div>
       ) : (
         /* ==================== WELCOME ONBOARDING VIEW ==================== */
-        <div className="flex flex-col flex-1 relative">
+        <div className={`flex flex-col flex-1 relative transition-colors duration-300 ${
+          theme === "dark" ? "bg-[#1E1E1E]" : "bg-white"
+        }`}>
           <div className="absolute top-5 right-5 z-50">
             <button
               type="button"
               onClick={toggleTheme}
-              className="p-2.5 rounded-xl bg-white/10 dark:bg-black/20 border border-white/20 backdrop-blur-md text-white hover:bg-white/20 transition-all active:scale-95 flex items-center justify-center cursor-pointer shadow-lg"
+              className={`p-2.5 rounded-2xl border backdrop-blur-md transition-all active:scale-95 flex items-center justify-center cursor-pointer shadow-md ${
+                theme === "dark"
+                  ? "bg-white/10 border-white/20 text-white hover:bg-white/20"
+                  : "bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-50 shadow-sm"
+              }`}
               aria-label="Toggle theme"
             >
               {theme === "dark" ? (
                 <Sun className="h-5 w-5 text-orange-400 animate-scale-up" />
               ) : (
-                <Moon className="h-5 w-5 text-white animate-scale-up" />
+                <Moon className="h-5 w-5 text-zinc-800 animate-scale-up" />
               )}
             </button>
           </div>
@@ -1142,22 +1148,40 @@ export default function WelcomePage() {
 
           <main className="flex-1">
             <section
-              className="relative overflow-hidden py-10 sm:py-12 px-5 bg-cover bg-center text-white"
-              style={{ backgroundImage: "url('/images/onboarding_bg.jpg')" }}
+              className={`relative overflow-hidden py-10 sm:py-12 px-5 transition-colors duration-300 ${
+                theme === "dark" ? "text-white" : "text-zinc-900 bg-gradient-to-b from-orange-50/80 via-white to-white"
+              }`}
             >
-              {/* Background gradient overlay & ambient orange blur */}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/90 to-black backdrop-blur-[2px]" />
+              {theme === "dark" && (
+                <>
+                  <div
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: "url('/images/onboarding_bg.jpg')" }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/90 to-black backdrop-blur-[2px]" />
+                </>
+              )}
+
+              {/* Ambient Warm Glow */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#FF6B00]/15 rounded-full blur-3xl pointer-events-none" />
 
               <div className="relative z-10 text-center flex flex-col items-center">
                 {/* Modern Pill Badge */}
-                <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.07] border border-white/10 px-3.5 py-1.5 text-[11px] font-bold text-white/90 mb-4 backdrop-blur-md shadow-sm">
+                <div
+                  className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[11px] font-bold mb-4 backdrop-blur-md shadow-sm border transition-colors ${
+                    theme === "dark"
+                      ? "bg-white/[0.07] border-white/10 text-white/90"
+                      : "bg-orange-500/10 border-orange-500/20 text-[#FF6B00]"
+                  }`}
+                >
                   <Sparkles className="w-3.5 h-3.5 text-[#FF6B00]" />
                   <span>Marosimlar & Restoranlar platformasi</span>
                 </div>
 
                 {/* Compact & Punchy Hero Title */}
-                <h1 className="text-[28px] sm:text-[32px] font-black tracking-tight leading-[1.18] text-white max-w-[320px]">
+                <h1 className={`text-[28px] sm:text-[32px] font-black tracking-tight leading-[1.18] max-w-[320px] transition-colors ${
+                  theme === "dark" ? "text-white" : "text-zinc-950"
+                }`}>
                   Bazmlarni oson{" "}
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF6B00] via-[#FF8533] to-[#FFA04D]">
                     rejalashtiring!
@@ -1165,28 +1189,36 @@ export default function WelcomePage() {
                 </h1>
 
                 {/* Refined Concise Subtitle */}
-                <p className="mt-3 text-xs sm:text-[13px] text-white/70 max-w-[290px] leading-relaxed font-medium">
+                <p className={`mt-3 text-xs sm:text-[13px] max-w-[290px] leading-relaxed font-medium transition-colors ${
+                  theme === "dark" ? "text-white/70" : "text-zinc-600"
+                }`}>
                   To'yxonalar, shinam restoranlar va katering xizmatlarini birgina ilovada toping va band qiling.
                 </p>
 
                 {/* Mini Stats Bar for Credibility & Polish */}
-                <div className="mt-5 py-2.5 px-4 rounded-2xl bg-white/[0.05] border border-white/10 backdrop-blur-md flex items-center justify-around w-full max-w-[330px] shadow-sm">
+                <div
+                  className={`mt-5 py-2.5 px-4 rounded-2xl border backdrop-blur-md flex items-center justify-around w-full max-w-[330px] shadow-sm transition-colors ${
+                    theme === "dark"
+                      ? "bg-white/[0.05] border-white/10"
+                      : "bg-white/80 border-zinc-200/80 shadow-sm"
+                  }`}
+                >
                   <div className="text-center">
-                    <span className="block text-xs font-black text-white">120+</span>
-                    <span className="text-[9px] text-zinc-400 font-semibold">Zallar</span>
+                    <span className={`block text-xs font-black ${theme === "dark" ? "text-white" : "text-zinc-900"}`}>120+</span>
+                    <span className={`text-[9px] font-semibold ${theme === "dark" ? "text-zinc-400" : "text-zinc-500"}`}>Zallar</span>
                   </div>
-                  <span className="w-px h-5 bg-white/10" />
+                  <span className={`w-px h-5 ${theme === "dark" ? "bg-white/10" : "bg-zinc-200"}`} />
                   <div className="text-center">
                     <span className="block text-xs font-black text-[#FFB800] flex items-center justify-center gap-0.5">
                       <Star className="w-3 h-3 fill-[#FFB800]" />
                       <span>4.9</span>
                     </span>
-                    <span className="text-[9px] text-zinc-400 font-semibold">Reyting</span>
+                    <span className={`text-[9px] font-semibold ${theme === "dark" ? "text-zinc-400" : "text-zinc-500"}`}>Reyting</span>
                   </div>
-                  <span className="w-px h-5 bg-white/10" />
+                  <span className={`w-px h-5 ${theme === "dark" ? "bg-white/10" : "bg-zinc-200"}`} />
                   <div className="text-center">
-                    <span className="block text-xs font-black text-emerald-400">10k+</span>
-                    <span className="text-[9px] text-zinc-400 font-semibold">Mijozlar</span>
+                    <span className={`block text-xs font-black ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>10k+</span>
+                    <span className={`text-[9px] font-semibold ${theme === "dark" ? "text-zinc-400" : "text-zinc-500"}`}>Mijozlar</span>
                   </div>
                 </div>
 
@@ -1201,7 +1233,11 @@ export default function WelcomePage() {
                   </Link>
                   <Link
                     href="/feed"
-                    className="flex-1 h-12 rounded-2xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-white font-extrabold text-xs backdrop-blur-md flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                    className={`flex-1 h-12 rounded-2xl border font-extrabold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer ${
+                      theme === "dark"
+                        ? "bg-white/[0.08] hover:bg-white/[0.12] border-white/10 text-white backdrop-blur-md"
+                        : "bg-white hover:bg-zinc-50 border-zinc-200 text-zinc-900 shadow-sm"
+                    }`}
                   >
                     <Compass className="w-3.5 h-3.5 text-primary" />
                     <span>Zallarni ko'rish</span>
@@ -1210,12 +1246,18 @@ export default function WelcomePage() {
               </div>
             </section>
 
-            <section className="py-12 px-4 bg-foreground/[0.02] dark:bg-white/[0.02]">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-black tracking-tight text-foreground dark:text-white">
+            <section className={`py-10 px-4 transition-colors ${
+              theme === "dark" ? "bg-[#1C1C1E]/50" : "bg-zinc-50/70"
+            }`}>
+              <div className="text-center mb-6">
+                <h2 className={`text-2xl font-black tracking-tight ${
+                  theme === "dark" ? "text-white" : "text-zinc-900"
+                }`}>
                   Biz nimalarni taklif qilamiz?
                 </h2>
-                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 max-w-xs mx-auto leading-relaxed">
+                <p className={`mt-2 text-xs max-w-xs mx-auto leading-relaxed ${
+                  theme === "dark" ? "text-zinc-400" : "text-zinc-500"
+                }`}>
                   Sizning barcha shodiyonalaringiz va bayramlaringiz uchun mukammal yechimlar.
                 </p>
               </div>
@@ -1226,21 +1268,37 @@ export default function WelcomePage() {
                   <Link
                     key={idx}
                     href="/feed"
-                    className="group relative rounded-[24px] bg-white dark:bg-[#2C2C2E] border border-zinc-200/80 dark:border-white/5 p-4 shadow-sm hover:shadow-md hover:border-primary/40 dark:hover:border-primary/40 transition-all duration-300 active:scale-[0.98] flex flex-col justify-between text-left"
+                    className={`group relative rounded-[24px] border p-4 transition-all duration-300 active:scale-[0.98] flex flex-col justify-between text-left ${
+                      theme === "dark"
+                        ? "bg-[#2C2C2E] border-white/10 hover:border-primary/40 shadow-sm"
+                        : "bg-white border-zinc-200/90 shadow-[0_4px_16px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-primary/40"
+                    }`}
                   >
                     <div>
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-2xl mb-3 group-hover:scale-110 transition-transform duration-300">
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl text-2xl mb-3 group-hover:scale-110 transition-transform duration-300 border ${
+                        theme === "dark"
+                          ? "bg-white/5 border-white/5"
+                          : "bg-orange-50/70 border-orange-100/60"
+                      }`}>
                         {cat.icon}
                       </div>
-                      <h3 className="text-sm font-extrabold text-foreground dark:text-white group-hover:text-primary transition-colors duration-200 leading-tight mb-1">
+                      <h3 className={`text-sm font-extrabold group-hover:text-primary transition-colors duration-200 leading-tight mb-1 ${
+                        theme === "dark" ? "text-white" : "text-zinc-900"
+                      }`}>
                         {cat.title}
                       </h3>
-                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-snug mb-3">
+                      <p className={`text-[11px] leading-snug mb-3 ${
+                        theme === "dark" ? "text-zinc-400" : "text-zinc-500"
+                      }`}>
                         {cat.desc}
                       </p>
                     </div>
                     <div>
-                      <span className="inline-flex items-center rounded-lg bg-primary/10 px-2.5 py-1 text-[10px] font-black text-primary">
+                      <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-black border ${
+                        theme === "dark"
+                          ? "bg-primary/10 border-primary/20 text-primary"
+                          : "bg-orange-50 border-orange-200/60 text-[#FF6B00]"
+                      }`}>
                         {cat.count}
                       </span>
                     </div>
@@ -1250,7 +1308,9 @@ export default function WelcomePage() {
             </section>
           </main>
 
-          <footer className="border-t border-brand-light-border dark:border-brand-dark-border py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
+          <footer className={`border-t py-4 text-center text-xs transition-colors ${
+            theme === "dark" ? "border-white/10 text-zinc-500" : "border-zinc-200 text-zinc-400"
+          }`}>
             <p>© 2026 BAZMLY. Barcha huquqlar himoyalangan.</p>
           </footer>
         </div>

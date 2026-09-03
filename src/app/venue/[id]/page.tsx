@@ -441,9 +441,105 @@ export default function VenueDetailPage({ params }: Props) {
 
   if (loading) {
     return (
-      <div className="flex flex-col flex-1 bg-[var(--background)] min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="text-xs text-zinc-400 mt-2">Ma'lumotlar yuklanmoqda...</span>
+      <div
+        className={`flex flex-col flex-1 min-h-screen relative animate-pulse select-none ${
+          isDark ? "bg-[var(--background)] text-white" : "bg-white text-zinc-900"
+        }`}
+      >
+        {/* Cinematic Top Image Skeleton */}
+        <div className="relative w-full h-[280px] bg-zinc-200 dark:bg-zinc-800 border-b border-zinc-200 dark:border-white/5 overflow-hidden">
+          {/* Header Action Buttons Skeleton */}
+          <div className="absolute top-5 left-6 right-6 flex items-center justify-between z-20">
+            <div className="w-10 h-10 rounded-full bg-black/25 dark:bg-white/10 backdrop-blur-md" />
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-full bg-black/25 dark:bg-white/10 backdrop-blur-md" />
+              <div className="w-10 h-10 rounded-full bg-black/25 dark:bg-white/10 backdrop-blur-md" />
+            </div>
+          </div>
+
+          {/* Bottom Small Gallery Thumbnails Skeleton */}
+          <div className="absolute bottom-4 left-6 right-6 z-20 flex justify-center">
+            <div className="bg-white/80 dark:bg-zinc-900/80 rounded-[18px] p-1.5 flex gap-1.5 items-center shadow-lg border border-white/40 dark:border-white/10 backdrop-blur-md max-w-[340px] overflow-hidden">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                  key={i}
+                  className="w-11 h-11 rounded-[12px] bg-zinc-300 dark:bg-white/10 shrink-0"
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Details Body Skeleton */}
+        <main className="flex-1 px-6 py-6 pb-28 flex flex-col gap-6 max-w-md mx-auto w-full text-left">
+          {/* Info Block Skeleton */}
+          <div className="space-y-4">
+            {/* Badges & Rating Row */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="w-36 h-6 rounded-lg bg-emerald-500/15" />
+              <div className="w-24 h-6 rounded-lg bg-yellow-500/15" />
+            </div>
+
+            {/* Title & Status */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="h-8 w-56 rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+              <div className="h-5 w-14 rounded-full bg-emerald-500/15" />
+            </div>
+
+            {/* Tagline */}
+            <div className="h-4 w-40 rounded-md bg-zinc-200/80 dark:bg-zinc-800/80" />
+
+            {/* Capacity & Deposit */}
+            <div className="flex items-center justify-between pt-1">
+              <div className="h-4 w-32 rounded-md bg-zinc-200/70 dark:bg-zinc-800/70" />
+              <div className="h-5 w-20 rounded-md bg-zinc-200/70 dark:bg-zinc-800/70" />
+            </div>
+
+            {/* Address */}
+            <div className="h-4 w-60 rounded-md bg-zinc-200/60 dark:bg-zinc-800/60" />
+
+            {/* Contact Action Buttons Skeleton */}
+            <div className="flex gap-2.5 pt-1">
+              <div className="flex-1 h-12 rounded-2xl bg-zinc-200 dark:bg-zinc-800" />
+              <div className="flex-1 h-12 rounded-2xl bg-zinc-200 dark:bg-zinc-800" />
+            </div>
+          </div>
+
+          {/* Zones & Halls Skeleton */}
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center justify-between">
+              <div className="h-4 w-28 rounded-md bg-zinc-200 dark:bg-zinc-800" />
+              <div className="h-4 w-20 rounded-md bg-zinc-200 dark:bg-zinc-800" />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-10 w-24 rounded-2xl bg-primary/20" />
+              <div className="h-10 w-24 rounded-2xl bg-zinc-200 dark:bg-zinc-800" />
+              <div className="h-10 w-24 rounded-2xl bg-zinc-200 dark:bg-zinc-800" />
+            </div>
+          </div>
+
+          {/* Working Hours Skeleton */}
+          <div className="h-14 w-full rounded-2xl border border-zinc-200 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800/40" />
+
+          {/* Menu Food Section Skeleton */}
+          <div className="space-y-3 pt-2">
+            <div className="h-5 w-32 rounded-md bg-zinc-200 dark:bg-zinc-800" />
+            <div className="flex gap-2 overflow-hidden">
+              <div className="h-9 w-20 rounded-full bg-zinc-200 dark:bg-zinc-800 shrink-0" />
+              <div className="h-9 w-24 rounded-full bg-zinc-200 dark:bg-zinc-800 shrink-0" />
+              <div className="h-9 w-20 rounded-full bg-zinc-200 dark:bg-zinc-800 shrink-0" />
+            </div>
+            <div className="space-y-2.5 pt-1">
+              <div className="h-20 w-full rounded-2xl border border-zinc-200 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800/40" />
+              <div className="h-20 w-full rounded-2xl border border-zinc-200 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800/40" />
+            </div>
+          </div>
+        </main>
+
+        {/* Sticky Bottom CTA Skeleton */}
+        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 z-40 bg-gradient-to-t from-[var(--background)] via-[var(--background)]/90 to-transparent">
+          <div className="w-full h-14 bg-primary/40 rounded-[24px]" />
+        </div>
       </div>
     );
   }

@@ -262,9 +262,25 @@ export default function VouchersAndTicketsPage() {
       {activeTab === "tickets" && (
         <div className="flex-1 px-4 py-3 space-y-4 text-left">
           {loadingBookings ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <Loader2 className="h-8 w-8 text-[#FF6B00] animate-spin" />
-              <p className="text-xs text-zinc-400">Chiptalar yuklanmoqda...</p>
+            <div className="space-y-4 animate-pulse">
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className={`p-5 rounded-3xl border flex flex-col gap-4 shadow-sm ${
+                    isDark ? "bg-[#393939] border-white/5" : "bg-white border-zinc-200"
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-2">
+                      <div className="h-5 w-40 rounded-lg bg-zinc-200 dark:bg-white/10" />
+                      <div className="h-3.5 w-28 rounded-md bg-zinc-200/80 dark:bg-white/10" />
+                    </div>
+                    <div className="h-6 w-20 rounded-full bg-zinc-200 dark:bg-white/10" />
+                  </div>
+                  <div className="h-10 w-full rounded-2xl bg-zinc-100 dark:bg-white/5" />
+                  <div className="h-12 w-full rounded-2xl bg-zinc-200 dark:bg-white/10" />
+                </div>
+              ))}
             </div>
           ) : bookings.length > 0 ? (
             bookings.map((b) => (
