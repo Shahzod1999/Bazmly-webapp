@@ -31,6 +31,7 @@ import {
   Sun,
   Moon,
   Loader2,
+  Store,
 } from "lucide-react";
 import Navbar from "@/components/navbar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -995,6 +996,11 @@ export default function LoginPage() {
   };
 
   const menuItems = [
+    {
+      label: "Admin / Hamkor paneli",
+      icon: Store,
+      action: () => router.push("/admin"),
+    },
     {
       label: "Xabarlar",
       icon: Bell,
