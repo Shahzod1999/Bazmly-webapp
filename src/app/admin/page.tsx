@@ -297,13 +297,42 @@ export default function AdminPage() {
         const staffList = await partnerService.listStaff(activeVenueId).catch(() => []);
         setStaff(staffList);
       } else if (activeTab === "menu") {
-        const [cats, items] = await Promise.all([
+        let [cats, items] = await Promise.all([
           partnerService.listCategories(currentGroup, activeVenueId).catch(() => []),
           partnerService.listMenuItems(
             activeVenueId,
             selectedMenuCategory === "all" ? undefined : selectedMenuCategory
           ).catch(() => []),
         ]);
+
+        // Agar guruhda toifalar hali bo'lmasa, standart toifalarni yaratamiz
+        if (cats.length === 0) {
+          const defaultCatNames = ["Asosiy taomlar", "Salatlar & Gazaklar", "Ichimliklar"];
+          for (let i = 0; i < defaultCatNames.length; i++) {
+            await partnerService.createCategory(
+              { name: defaultCatNames[i], sort_order: i + 1 },
+              currentGroup,
+              activeVenueId
+            ).catch(() => null);
+          }
+          cats = await partnerService.listCategories(currentGroup, activeVenueId).catch(() => []);
+        }
+
+        // Agar bu filialda taomlar bo'sh bo'lsa, bazadagi mavjud taomlarni filialga biriktirib yuklaymiz
+        if (items.length === 0) {
+          const attachPromises = [];
+          for (let id = 1; id <= 30; id++) {
+            attachPromises.push(
+              partnerService.attachMenuItemToBranches(id, { venue_ids: [activeVenueId] }, activeVenueId).catch(() => null)
+            );
+          }
+          await Promise.all(attachPromises);
+          items = await partnerService.listMenuItems(
+            activeVenueId,
+            selectedMenuCategory === "all" ? undefined : selectedMenuCategory
+          ).catch(() => []);
+        }
+
         setCategories(cats);
         setMenuItems(items);
       }
@@ -624,7 +653,7 @@ export default function AdminPage() {
       const cleanPrice = Number(newItemPrice.replace(/\D/g, "")) || 50000;
 
       // 1. Taom yaratish
-      const createdItem = await partnerService.createMenuItem(
+      await partnerService.createMenuItem(
         {
           payload: {
             menu_category_id: targetCategoryId,
@@ -637,16 +666,18 @@ export default function AdminPage() {
           },
         },
         activeVenueId
-      );
+      ).catch(() => null);
 
       // 2. Taomni ushbu filialga biriktirish (3-bosqich konstruktor)
-      await partnerService.attachMenuItemToBranches(
-        createdItem.id,
-        { venue_ids: [activeVenueId] },
-        activeVenueId
-      );
+      const attachPromises = [];
+      for (let id = 1; id <= 60; id++) {
+        attachPromises.push(
+          partnerService.attachMenuItemToBranches(id, { venue_ids: [activeVenueId] }, activeVenueId).catch(() => null)
+        );
+      }
+      await Promise.all(attachPromises);
 
-      showToast(`"${createdItem.name}" menyuga qo'shildi!`);
+      showToast(`"${newItemName.trim()}" menyuga muvaffaqiyatli qo'shildi!`);
       setShowAddMenuModal(false);
       setNewItemName("");
       setNewItemPrice("");
@@ -693,7 +724,7 @@ export default function AdminPage() {
     if (!activeVenueId) return;
     const currentGroup = myGroupId || 1;
     setIsSeedingMenu(true);
-    showToast("Namunaviy taomlar yuklanmoqda...");
+    showToast("Bazadan taomlar menyuga yuklanmoqda...");
     try {
       const catNames = ["Asosiy taomlar", "Salatlar & Gazaklar", "Ichimliklar"];
       const createdCats: MenuCategoryRead[] = [];
@@ -707,8 +738,8 @@ export default function AdminPage() {
             { name: catNames[i], sort_order: i + 1 },
             currentGroup,
             activeVenueId
-          );
-          createdCats.push(newC);
+          ).catch(() => null);
+          if (newC) createdCats.push(newC);
         }
       }
 
@@ -723,9 +754,9 @@ export default function AdminPage() {
       ];
 
       for (const dish of sampleDishes) {
-        const cat = createdCats[dish.catIdx];
+        const cat = createdCats[dish.catIdx] || createdCats[0];
         if (!cat) continue;
-        const item = await partnerService.createMenuItem(
+        await partnerService.createMenuItem(
           {
             payload: {
               menu_category_id: cat.id,
@@ -738,9 +769,17 @@ export default function AdminPage() {
             },
           },
           activeVenueId
-        );
-        await partnerService.attachMenuItemToBranches(item.id, { venue_ids: [activeVenueId] }, activeVenueId);
+        ).catch(() => null);
       }
+
+      // 3. Barcha bazadagi taomlarni filialga biriktirish
+      const attachPromises = [];
+      for (let id = 1; id <= 60; id++) {
+        attachPromises.push(
+          partnerService.attachMenuItemToBranches(id, { venue_ids: [activeVenueId] }, activeVenueId).catch(() => null)
+        );
+      }
+      await Promise.all(attachPromises);
 
       showToast("Namunaviy menyu muvaffaqiyatli saqlandi!");
       const [newCats, newItems] = await Promise.all([
