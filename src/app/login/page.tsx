@@ -842,55 +842,54 @@ export default function LoginPage() {
       return;
     }
 
+    // 1. Admin bypass check first to avoid any unnecessary failing network calls
+    if (username.trim() === "admin" && password.trim() === "admin") {
+      localStorage.setItem("fullName", "Admin Hamkor");
+      localStorage.setItem("phone", "+998991234567");
+      localStorage.setItem("location", "Tashkent, Tashkent city");
+      localStorage.setItem("userRole", "partner");
+      localStorage.setItem("isRegistered", "true");
+      setIsRegistered(true);
+      setRole("partner");
+      setFullName("Admin Hamkor");
+      showToast("Tizimga muvaffaqiyatli kirdingiz!");
+      router.push("/admin");
+      return;
+    }
+
     setLoading(true);
     try {
-      let phoneToLogin = username.trim().replace(/\D/g, "");
-      if (!phoneToLogin.startsWith("998") && phoneToLogin.length === 9) {
-        phoneToLogin = "998" + phoneToLogin;
-      }
-      if (phoneToLogin.startsWith("998")) {
-        phoneToLogin = "+" + phoneToLogin;
-      }
+      const digitsOnly = username.trim().replace(/\D/g, "");
+      const isPhoneNumber = digitsOnly.length >= 7;
 
-      // Try customer phone login first
-      try {
+      if (isPhoneNumber) {
+        let phoneToLogin = digitsOnly;
+        if (!phoneToLogin.startsWith("998") && phoneToLogin.length === 9) {
+          phoneToLogin = "998" + phoneToLogin;
+        }
+        if (!phoneToLogin.startsWith("+")) {
+          phoneToLogin = "+" + phoneToLogin;
+        }
+
         await login({ phone: phoneToLogin, password: password.trim() });
         showToast("Tizimga muvaffaqiyatli kirdingiz!");
         setIsRegistered(true);
-        const me = await userService.getMe();
-        if (me.role === "partner" || me.role === "admin" || me.role === "staff") {
+        const me = await userService.getMe().catch(() => null);
+        if (me && (me.role === "partner" || me.role === "admin" || me.role === "staff")) {
           router.push("/admin");
         } else {
           router.push("/feed");
         }
         return;
-      } catch (phoneErr) {
-        // Try staff login
-        try {
-          await loginStaff({ login: username.trim(), password: password.trim() });
-          showToast("Xodim sifatida tizimga kirdingiz!");
-          setIsRegistered(true);
-          router.push("/admin");
-          return;
-        } catch {
-          throw phoneErr;
-        }
-      }
-    } catch (err: any) {
-      // Fallback local admin
-      if (username.trim() === "admin" && password.trim() === "admin") {
-        localStorage.setItem("fullName", "Admin Hamkor");
-        localStorage.setItem("phone", "+998991234567");
-        localStorage.setItem("location", "Tashkent, Tashkent city");
-        localStorage.setItem("userRole", "partner");
-        localStorage.setItem("isRegistered", "true");
+      } else {
+        // Staff username login
+        await loginStaff({ login: username.trim(), password: password.trim() });
+        showToast("Xodim sifatida tizimga kirdingiz!");
         setIsRegistered(true);
-        setRole("partner");
-        setFullName("Admin Hamkor");
-        showToast("Tizimga muvaffaqiyatli kirdingiz!");
         router.push("/admin");
         return;
       }
+    } catch (err: any) {
       setError(err?.message || "Login yoki parol noto'g'ri!");
     } finally {
       setLoading(false);

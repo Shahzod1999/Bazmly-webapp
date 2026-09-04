@@ -231,31 +231,43 @@ export const partnerService = {
   },
 
   // --- Menu Management ---
-  async listCategories(venueId?: number | string): Promise<MenuCategoryRead[]> {
+  async listCategories(
+    groupIdOrVenueId?: number | string,
+    venueId?: number | string | null
+  ): Promise<MenuCategoryRead[]> {
+    const groupId = groupIdOrVenueId || 1;
     return apiFetch<MenuCategoryRead[]>("/api/v1/venue/menu/categories", {
-      params: venueId ? { venue_id: venueId } : undefined,
+      params: {
+        group_id: groupId,
+        venue_id: venueId || undefined,
+      },
     });
   },
 
   async createCategory(
     data: MenuCategoryCreate,
+    groupId?: number | string,
     venueId?: number | string
   ): Promise<MenuCategoryRead> {
     return apiFetch<MenuCategoryRead>("/api/v1/venue/menu/categories", {
       method: "POST",
-      params: venueId ? { venue_id: venueId } : undefined,
+      params: {
+        group_id: groupId || 1,
+        venue_id: venueId || undefined,
+      },
       body: JSON.stringify(data),
     });
   },
 
   async listMenuItems(
-    categoryId?: number | string | null,
-    venueId?: number | string | null
+    venueId?: number | string | null,
+    categoryId?: number | string | null
   ): Promise<MenuItemListItem[]> {
+    if (!venueId) return [];
     return apiFetch<MenuItemListItem[]>("/api/v1/venue/menu/items", {
       params: {
+        venue_id: venueId,
         category_id: categoryId || undefined,
-        venue_id: venueId || undefined,
       },
     });
   },

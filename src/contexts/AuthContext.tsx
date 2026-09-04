@@ -77,12 +77,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(profile);
       syncLegacyStorage(profile);
       return profile;
-    } catch {
-      const token = getAccessToken();
-      if (!token) {
-        setUser(null);
-        syncLegacyStorage(null);
+    } catch (err: any) {
+      if (err?.status === 401 || err?.status === 403) {
+        clearTokens();
       }
+      setUser(null);
+      syncLegacyStorage(null);
       return null;
     } finally {
       setLoading(false);
@@ -137,9 +137,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await authService.logout(refresh);
       } catch {}
-    } else {
-      clearTokens();
     }
+    clearTokens();
     setUser(null);
     syncLegacyStorage(null);
   };
@@ -160,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return updated;
   };
 
-  const isAuthenticated = !!user || (typeof window !== "undefined" && !!getAccessToken());
+  const isAuthenticated = !!user;
   const isPartner =
     user?.role === "partner" ||
     user?.role === "venue_owner" ||

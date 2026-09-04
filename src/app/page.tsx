@@ -239,7 +239,7 @@ export default function WelcomePage() {
 
   // Fetch recent locations & favorites if user is logged in
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
       userService.listRecentLocations()
         .then((locs) => setRecentLocations(locs || []))
         .catch(() => {});
@@ -249,7 +249,7 @@ export default function WelcomePage() {
         })
         .catch(() => {});
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   // Stories progress timer
   useEffect(() => {
@@ -276,7 +276,7 @@ export default function WelcomePage() {
 
   // Notifications fetch
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
       engagementService.getUnreadNotificationsCount()
         .then((cnt) => setUnreadCount(cnt || 0))
         .catch(() => {});
@@ -284,7 +284,7 @@ export default function WelcomePage() {
         .then((res) => setNotifications(res.items || []))
         .catch(() => {});
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   // Hide global bottom bar when Story Viewer, Notifications, or Sheets are open
   useEffect(() => {

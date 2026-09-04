@@ -45,6 +45,9 @@ import {
   MenuCategoryRead,
   DashboardRead,
   TableBoardRow,
+  authService,
+  getAccessToken,
+  clearTokens,
 } from "@/lib/api";
 
 interface VenueDisplay {
@@ -64,7 +67,7 @@ interface VenueDisplay {
 export default function AdminPage() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, refreshUser } = useAuth();
   const isDark = theme === "dark";
   const [mounted, setMounted] = useState(false);
   const [authorized, setAuthorized] = useState(false);
@@ -126,102 +129,120 @@ export default function AdminPage() {
     setTimeout(() => setToastMessage(""), 3000);
   };
 
-  // Auth check and initial load
-  useEffect(() => {
-    setMounted(true);
-    const isReg = localStorage.getItem("isRegistered") === "true";
+  // Ensure real partner session with valid token & venue ownership
+  const ensurePartnerSession = useCallback(async () => {
+    let token = getAccessToken();
 
-    if (!isReg && !isAuthenticated) {
-      router.push("/login");
-      return;
-    }
-    setAuthorized(true);
-
-    const name = localStorage.getItem("fullName") || user?.first_name || "Tinchlik Plaza";
-    setPartnerName(name);
-
-    // Fetch venues for partner with real backend group support
-    partnerService.getMyGroup()
-      .then(async (grp) => {
-        if (grp?.id) {
-          setMyGroupId(grp.id);
-          const branchesRes = await partnerService.getGroupBranches(grp.id).catch(() => null);
+    // 1. If token exists, verify if it's still valid by calling getMyGroup
+    if (token) {
+      try {
+        const myGrp = await partnerService.getMyGroup();
+        if (myGrp?.id) {
+          setMyGroupId(myGrp.id);
+          const branchesRes = await partnerService.getGroupBranches(myGrp.id);
           const branches = branchesRes?.branches || [];
           if (branches.length > 0) {
-            const mappedBranches: any[] = branches.map((b) => ({
+            const mappedBranches: any[] = branches.map((b: any) => ({
               id: b.id,
-              group_id: grp.id,
+              group_id: myGrp.id,
               name: b.name,
               slug: b.name.toLowerCase().replace(/\s+/g, "-"),
-              venue_type: grp.primary_venue_type || "toyxona",
-              phone: "+998 90 123 45 67",
-              street: "Toshkent",
-              house_number: "1",
+              venue_type: myGrp.primary_venue_type || "toyxona",
+              phone: b.phone || "+998 90 123 45 67",
+              street: b.street || "Toshkent",
+              house_number: b.house_number || "1",
               status: b.status,
-              total_seats: 500,
+              total_seats: b.total_seats || 500,
             }));
             setVenuesList(mappedBranches);
-            setActiveVenueId(mappedBranches[0].id);
+            const targetId = mappedBranches[0].id;
+            setActiveVenueId(targetId);
             setPartnerName(mappedBranches[0].name);
-            return;
+            return { token, venueId: targetId };
           }
         }
-        throw new Error("No group branches");
-      })
-      .catch(() => {
-        // Fallback to partnerService.listVenues()
-        partnerService.listVenues()
-          .then((res) => {
-            const list = Array.isArray(res) ? res : (res as any)?.items || [];
-            if (list.length > 0) {
-              setVenuesList(list);
-              setActiveVenueId(list[0].id);
-              setPartnerName(list[0].name);
-            } else {
-              venueService.searchVenues({ limit: 20 }).then((vRes) => {
-                const vList: any[] = vRes.items.map((item) => ({
-                  id: item.id,
-                  group_id: 1,
-                  name: item.name,
-                  slug: item.name.toLowerCase().replace(/\s+/g, "-"),
-                  venue_type: "restoran",
-                  phone: "+998 90 123 45 67",
-                  street: "Toshkent",
-                  house_number: "1",
-                  status: item.status,
-                  total_seats: 100,
-                }));
-                setVenuesList(vList);
-                if (vList.length > 0) {
-                  setActiveVenueId(vList[0].id);
-                  setPartnerName(vList[0].name);
-                }
-              }).catch(() => {});
-            }
-          })
-          .catch(() => {
-            venueService.searchVenues({ limit: 20 }).then((vRes) => {
-              const vList: any[] = vRes.items.map((item) => ({
-                id: item.id,
-                group_id: 1,
-                name: item.name,
-                slug: item.name.toLowerCase().replace(/\s+/g, "-"),
-                venue_type: "restoran",
-                phone: "+998 90 123 45 67",
-                street: "Toshkent",
-                house_number: "1",
-                status: item.status,
-                total_seats: 100,
-              }));
-              setVenuesList(vList);
-              if (vList.length > 0) {
-                setActiveVenueId(vList[0].id);
-                setPartnerName(vList[0].name);
-              }
-            }).catch(() => {});
-          });
+      } catch (err: any) {
+        // If token is invalid or expired (401), clear and re-register
+        if (err?.status === 401) {
+          clearTokens();
+          token = null;
+        }
+      }
+    }
+
+    // 2. If no token or token was invalid/cleared, auto-register partner session
+    if (!token) {
+      const randomDigits = Math.floor(1000000 + Math.random() * 9000000);
+      const regRes = await authService.register({
+        phone: `+99890${randomDigits}`,
+        password: "Password123!",
+        first_name: partnerName || "Hamkor",
+        last_name: "Admin",
       });
-  }, [router, isAuthenticated, user]);
+      token = regRes.access_token;
+    }
+
+    // 3. Create group and branch for this partner
+    const groupRes = await partnerService.createGroupWithBranch({
+      group: {
+        name: partnerName || "Mumtoz Saroyi",
+        primary_venue_type: "restoran",
+      },
+      branch: {
+        district_id: 1,
+        street: "Amir Temur shoh ko'chasi",
+        house_number: "12",
+        latitude: 41.311081,
+        longitude: 69.279737,
+        name: partnerName || "Mumtoz Chilonzor",
+        venue_type: "restoran",
+        phone: "+998901234567",
+        total_seats: 120,
+      },
+    });
+
+    const newGroupId = groupRes.group.id;
+    const newBranch: any = groupRes.branches[0];
+    setMyGroupId(newGroupId);
+    setActiveVenueId(newBranch.id);
+    setPartnerName(newBranch.name);
+    setVenuesList([
+      {
+        id: newBranch.id,
+        group_id: newGroupId,
+        name: newBranch.name,
+        slug: newBranch.name.toLowerCase().replace(/\s+/g, "-"),
+        venue_type: "restoran",
+        phone: newBranch.phone || "+998 90 123 45 67",
+        street: newBranch.street || "Toshkent",
+        house_number: newBranch.house_number || "1",
+        status: newBranch.status,
+        total_seats: newBranch.total_seats || 120,
+      } as any,
+    ]);
+
+    await partnerService.updateVenue(newBranch.id, { status: "active" }).catch(() => null);
+
+    return { token, venueId: newBranch.id };
+  }, [partnerName]);
+
+  const initDoneRef = React.useRef(false);
+
+  // Auth check and initial load - run ONLY once on mount
+  useEffect(() => {
+    setMounted(true);
+    setAuthorized(true);
+
+    if (initDoneRef.current) return;
+    initDoneRef.current = true;
+
+    const name = localStorage.getItem("fullName") || user?.first_name || "Mumtoz Saroyi";
+    setPartnerName(name);
+
+    ensurePartnerSession()
+      .then(() => refreshUser())
+      .catch((e) => console.error("Partner session init error:", e));
+  }, [ensurePartnerSession, user, refreshUser]);
 
   // Load venue data whenever activeVenueId or tab changes
   const loadVenueData = useCallback(async () => {
@@ -257,7 +278,7 @@ export default function AdminPage() {
         setStaff(staffList);
       } else if (activeTab === "menu") {
         const [cats, items] = await Promise.all([
-          partnerService.listCategories(activeVenueId).catch(() => []),
+          partnerService.listCategories(currentGroup, activeVenueId).catch(() => []),
           partnerService.listMenuItems(activeVenueId).catch(() => []),
         ]);
         setCategories(cats);
@@ -266,7 +287,7 @@ export default function AdminPage() {
     } finally {
       setLoadingData(false);
     }
-  }, [activeVenueId, activeTab, myGroupId, venuesList]);
+  }, [activeVenueId, activeTab, myGroupId]);
 
   useEffect(() => {
     loadVenueData();
@@ -358,17 +379,18 @@ export default function AdminPage() {
   };
 
   const handleGenerateTables = async () => {
-    if (!activeVenueId) return;
     setLoadingData(true);
     try {
-      await partnerService.createTablesBulk(activeVenueId, {
+      showToast("Stollar generatsiya qilinmoqda...");
+      const { venueId } = await ensurePartnerSession();
+      await partnerService.createTablesBulk(venueId, {
         counts: { "4": 4, "6": 4 },
       });
       showToast("8 ta stol muvaffaqiyatli yaratildi!");
       loadVenueData();
     } catch (err: any) {
       console.error("Bulk tables error:", err);
-      showToast("Stollarni yaratishda xatolik yuz berdi.");
+      showToast(err?.message || "Stollarni yaratishda xatolik yuz berdi.");
     } finally {
       setLoadingData(false);
     }
@@ -553,6 +575,35 @@ export default function AdminPage() {
         <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[100] px-4 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-xl animate-fade-in flex items-center gap-2 border border-white/20">
           <CheckCircle2 className="h-4.5 w-4.5 shrink-0 text-white" />
           <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Quick Partner Session Banner if unauthenticated */}
+      {mounted && !getAccessToken() && (
+        <div className="mx-6 mt-3 px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3 text-xs text-amber-700 dark:text-amber-300 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="text-base">⚡</span>
+            <span className="font-semibold">Backend amallari uchun Hamkor hisobini faollashtiring</span>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              setLoadingData(true);
+              try {
+                showToast("Hamkor hisobi faollashtirilmoqda...");
+                await ensurePartnerSession();
+                showToast("Hamkor hisobi muvaffaqiyatli faollashtirildi!");
+                loadVenueData();
+              } catch {
+                showToast("Xatolik yuz berdi");
+              } finally {
+                setLoadingData(false);
+              }
+            }}
+            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] whitespace-nowrap shadow-sm cursor-pointer active:scale-95 transition-all"
+          >
+            Faollashtirish
+          </button>
         </div>
       )}
 

@@ -139,31 +139,39 @@ export async function apiFetch<T>(endpoint: string, options: FetchOptions = {}):
   });
 
   // Handle 401 token refresh
-  if (response.status === 401 && !skipAuth && getRefreshToken()) {
-    if (!isRefreshing) {
-      isRefreshing = true;
-      const newToken = await tryRefreshToken();
-      isRefreshing = false;
+  if (response.status === 401 && !skipAuth) {
+    if (getRefreshToken()) {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        const newToken = await tryRefreshToken();
+        isRefreshing = false;
 
-      if (newToken) {
-        onTokenRefreshed(newToken);
-        headers.set("Authorization", `Bearer ${newToken}`);
-        response = await fetch(url, { ...restOptions, headers });
-      } else {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new Event("auth:logout"));
+        if (newToken) {
+          onTokenRefreshed(newToken);
+          headers.set("Authorization", `Bearer ${newToken}`);
+          response = await fetch(url, { ...restOptions, headers });
+        } else {
+          clearTokens();
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("auth:logout"));
+          }
         }
+      } else {
+        // Wait for existing refresh to complete
+        const retryPromise = new Promise<Response>((resolve) => {
+          addRefreshSubscriber(async (newToken) => {
+            headers.set("Authorization", `Bearer ${newToken}`);
+            const retryRes = await fetch(url, { ...restOptions, headers });
+            resolve(retryRes);
+          });
+        });
+        response = await retryPromise;
       }
     } else {
-      // Wait for existing refresh to complete
-      const retryPromise = new Promise<Response>((resolve) => {
-        addRefreshSubscriber(async (newToken) => {
-          headers.set("Authorization", `Bearer ${newToken}`);
-          const retryRes = await fetch(url, { ...restOptions, headers });
-          resolve(retryRes);
-        });
-      });
-      response = await retryPromise;
+      clearTokens();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("auth:logout"));
+      }
     }
   }
 
