@@ -32,6 +32,7 @@ import {
   Sun,
   Loader2,
   PlusCircle,
+  Sparkles,
 } from "lucide-react";
 import {
   partnerService,
@@ -62,6 +63,18 @@ interface VenueDisplay {
   category: "restoran" | "toyxona";
   emoji: string;
   tags?: string[];
+}
+
+function getFoodEmoji(name: string): string {
+  const n = (name || "").toLowerCase();
+  if (n.includes("osh") || n.includes("palov")) return "🍚";
+  if (n.includes("kabob") || n.includes("shashlik") || n.includes("go'sht") || n.includes("jizz") || n.includes("stake") || n.includes("steik")) return "🥩";
+  if (n.includes("somsa") || n.includes("manti") || n.includes("lag'mon") || n.includes("chuchvara") || n.includes("non") || n.includes("patir")) return "🥟";
+  if (n.includes("salat") || n.includes("achchiq") || n.includes("suzma") || n.includes("pomidor") || n.includes("olivye") || n.includes("sezar")) return "🥗";
+  if (n.includes("choy") || n.includes("sharbat") || n.includes("suv") || n.includes("kola") || n.includes("kofe") || n.includes("ichimlik") || n.includes("pepsi")) return "🍵";
+  if (n.includes("tort") || n.includes("shirinlik") || n.includes("desert") || n.includes("paxlava") || n.includes("muzqaymoq")) return "🍰";
+  if (n.includes("sho'rva") || n.includes("mastava") || n.includes("lagman")) return "🍲";
+  return "🍽️";
 }
 
 export default function AdminPage() {
@@ -123,6 +136,13 @@ export default function AdminPage() {
   const [newItemName, setNewItemName] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");
   const [newItemCategory, setNewItemCategory] = useState<number | undefined>(undefined);
+  const [selectedMenuCategory, setSelectedMenuCategory] = useState<number | "all">("all");
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newItemDescription, setNewItemDescription] = useState("");
+  const [isSubmittingMenu, setIsSubmittingMenu] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<MenuItemListItem | null>(null);
+  const [isSeedingMenu, setIsSeedingMenu] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -279,7 +299,10 @@ export default function AdminPage() {
       } else if (activeTab === "menu") {
         const [cats, items] = await Promise.all([
           partnerService.listCategories(currentGroup, activeVenueId).catch(() => []),
-          partnerService.listMenuItems(activeVenueId).catch(() => []),
+          partnerService.listMenuItems(
+            activeVenueId,
+            selectedMenuCategory === "all" ? undefined : selectedMenuCategory
+          ).catch(() => []),
         ]);
         setCategories(cats);
         setMenuItems(items);
@@ -287,7 +310,7 @@ export default function AdminPage() {
     } finally {
       setLoadingData(false);
     }
-  }, [activeVenueId, activeTab, myGroupId]);
+  }, [activeVenueId, activeTab, myGroupId, selectedMenuCategory]);
 
   useEffect(() => {
     loadVenueData();
@@ -524,32 +547,213 @@ export default function AdminPage() {
     }
   };
 
+  const handleSelectCategory = async (catId: number | "all") => {
+    setSelectedMenuCategory(catId);
+    if (!activeVenueId) return;
+    setLoadingData(true);
+    try {
+      const items = await partnerService.listMenuItems(
+        activeVenueId,
+        catId === "all" ? undefined : catId
+      );
+      setMenuItems(items);
+    } catch {
+      showToast("Taomlarni yuklashda xatolik");
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryName.trim() || !activeVenueId) {
+      showToast("Kategoriya nomini kiriting!");
+      return;
+    }
+    const currentGroup = myGroupId || 1;
+    try {
+      setIsSubmittingMenu(true);
+      const newCat = await partnerService.createCategory(
+        { name: newCategoryName.trim(), sort_order: categories.length + 1 },
+        currentGroup,
+        activeVenueId
+      );
+      showToast(`"${newCat.name}" toifasi qo'shildi!`);
+      setNewCategoryName("");
+      setShowAddCategoryModal(false);
+      const cats = await partnerService.listCategories(currentGroup, activeVenueId).catch(() => []);
+      setCategories(cats);
+      setSelectedMenuCategory(newCat.id);
+      const items = await partnerService.listMenuItems(activeVenueId, newCat.id).catch(() => []);
+      setMenuItems(items);
+    } catch (err: any) {
+      showToast(err?.message || "Kategoriya yaratishda xatolik");
+    } finally {
+      setIsSubmittingMenu(false);
+    }
+  };
+
   const handleAddMenuItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItemName.trim() || !newItemPrice || !activeVenueId) {
       showToast("Ma'lumotlarni to'liq kiriting!");
       return;
     }
+
+    const currentGroup = myGroupId || 1;
+    setIsSubmittingMenu(true);
     try {
-      await partnerService.createMenuItem(
+      let targetCategoryId = newItemCategory;
+
+      // Agar kategoriya mavjud bo'lmasa, avtomatik yaratiladi
+      if (!targetCategoryId) {
+        if (categories.length > 0) {
+          targetCategoryId = categories[0].id;
+        } else {
+          const defaultCat = await partnerService.createCategory(
+            { name: "Asosiy taomlar", sort_order: 1 },
+            currentGroup,
+            activeVenueId
+          );
+          targetCategoryId = defaultCat.id;
+          const updatedCats = await partnerService.listCategories(currentGroup, activeVenueId).catch(() => []);
+          setCategories(updatedCats);
+        }
+      }
+
+      const cleanPrice = Number(newItemPrice.replace(/\D/g, "")) || 50000;
+
+      // 1. Taom yaratish
+      const createdItem = await partnerService.createMenuItem(
         {
           payload: {
+            menu_category_id: targetCategoryId,
             name: newItemName.trim(),
-            menu_category_id: newItemCategory || (categories[0]?.id ?? 1),
-            base_price: Number(newItemPrice.replace(/\D/g, "")),
+            description: newItemDescription.trim() || null,
+            base_price: cleanPrice,
             currency: "UZS",
+            sort_order: menuItems.length + 1,
+            has_variants: false,
           },
         },
         activeVenueId
       );
-      showToast("Taom menyuga qo'shildi!");
+
+      // 2. Taomni ushbu filialga biriktirish (3-bosqich konstruktor)
+      await partnerService.attachMenuItemToBranches(
+        createdItem.id,
+        { venue_ids: [activeVenueId] },
+        activeVenueId
+      );
+
+      showToast(`"${createdItem.name}" menyuga qo'shildi!`);
       setShowAddMenuModal(false);
       setNewItemName("");
       setNewItemPrice("");
-      loadVenueData();
-    } catch {
-      showToast("Taom qo'shildi!");
-      setShowAddMenuModal(false);
+      setNewItemDescription("");
+
+      // 3. Ro'yxatni yangilash
+      const [updatedCats, updatedItems] = await Promise.all([
+        partnerService.listCategories(currentGroup, activeVenueId).catch(() => []),
+        partnerService.listMenuItems(
+          activeVenueId,
+          selectedMenuCategory === "all" ? undefined : selectedMenuCategory
+        ).catch(() => []),
+      ]);
+      setCategories(updatedCats);
+      setMenuItems(updatedItems);
+    } catch (err: any) {
+      showToast(err?.message || "Taom qo'shishda xatolik yuz berdi");
+    } finally {
+      setIsSubmittingMenu(false);
+    }
+  };
+
+  const handleDeleteMenuItem = async (itemId: number) => {
+    if (!activeVenueId) return;
+    setIsSubmittingMenu(true);
+    try {
+      // Filialdan taomni olib tashlash
+      await partnerService.attachMenuItemToBranches(itemId, { venue_ids: [] }, activeVenueId);
+      showToast("Taom filial menyusidan o'chirildi!");
+      setItemToDelete(null);
+      const items = await partnerService.listMenuItems(
+        activeVenueId,
+        selectedMenuCategory === "all" ? undefined : selectedMenuCategory
+      ).catch(() => []);
+      setMenuItems(items);
+    } catch (err: any) {
+      showToast(err?.message || "O'chirishda xatolik");
+    } finally {
+      setIsSubmittingMenu(false);
+    }
+  };
+
+  const handleSeedDefaultMenu = async () => {
+    if (!activeVenueId) return;
+    const currentGroup = myGroupId || 1;
+    setIsSeedingMenu(true);
+    showToast("Namunaviy taomlar yuklanmoqda...");
+    try {
+      const catNames = ["Asosiy taomlar", "Salatlar & Gazaklar", "Ichimliklar"];
+      const createdCats: MenuCategoryRead[] = [];
+
+      for (let i = 0; i < catNames.length; i++) {
+        const existing = categories.find((c) => c.name.toLowerCase() === catNames[i].toLowerCase());
+        if (existing) {
+          createdCats.push(existing);
+        } else {
+          const newC = await partnerService.createCategory(
+            { name: catNames[i], sort_order: i + 1 },
+            currentGroup,
+            activeVenueId
+          );
+          createdCats.push(newC);
+        }
+      }
+
+      const sampleDishes = [
+        { name: "To'y Oshi (Devzira)", price: 55000, catIdx: 0, desc: "Qo'y go'shti, devzira guruch, qazi, no'xat" },
+        { name: "Qozon Kabob", price: 85000, catIdx: 0, desc: "Qovurilgan qo'zichoq va qarsildoq kartoshka" },
+        { name: "Manti (Go'shtli)", price: 40000, catIdx: 0, desc: "Shirali maydalangan go'sht va mayin xamir" },
+        { name: "Achchiq-chuchuk", price: 20000, catIdx: 1, desc: "Yangi pomidor, piyoz, rayhon" },
+        { name: "Suzma ko'katlar bilan", price: 18000, catIdx: 1, desc: "Tabiiy suzma, kashnich, sarimsoq" },
+        { name: "Maxsus Ko'k Choy", price: 12000, catIdx: 2, desc: "Limon va tog' yalpizi bilan damlangan" },
+        { name: "Tabiiy Anor Sharbati", price: 30000, catIdx: 2, desc: "100% yangi siqilgan sharbat" },
+      ];
+
+      for (const dish of sampleDishes) {
+        const cat = createdCats[dish.catIdx];
+        if (!cat) continue;
+        const item = await partnerService.createMenuItem(
+          {
+            payload: {
+              menu_category_id: cat.id,
+              name: dish.name,
+              description: dish.desc,
+              base_price: dish.price,
+              currency: "UZS",
+              sort_order: 0,
+              has_variants: false,
+            },
+          },
+          activeVenueId
+        );
+        await partnerService.attachMenuItemToBranches(item.id, { venue_ids: [activeVenueId] }, activeVenueId);
+      }
+
+      showToast("Namunaviy menyu muvaffaqiyatli saqlandi!");
+      const [newCats, newItems] = await Promise.all([
+        partnerService.listCategories(currentGroup, activeVenueId).catch(() => []),
+        partnerService.listMenuItems(activeVenueId).catch(() => []),
+      ]);
+      setCategories(newCats);
+      setMenuItems(newItems);
+      setSelectedMenuCategory("all");
+    } catch (err: any) {
+      showToast(err?.message || "Namunaviy menyuni yuklashda xatolik");
+    } finally {
+      setIsSeedingMenu(false);
     }
   };
 
@@ -1132,104 +1336,377 @@ export default function AdminPage() {
 
       {/* TAB 3: MENYU (MENU ITEMS & CATEGORIES) */}
       {activeTab === "menu" && (
-        <div className="flex flex-col flex-1 animate-fade-in pb-20">
-          <header className="px-6 py-5 border-b border-zinc-100 dark:border-white/5 flex items-center justify-between">
-            <h1 className="text-xl font-black">Menyu boshqaruvi</h1>
-            <button
-              onClick={() => setShowAddMenuModal(true)}
-              className="p-2 rounded-xl bg-[#FF5A00] text-white flex items-center justify-center active:scale-95 transition-all shadow-md shadow-[#FF5A00]/10 cursor-pointer"
-              title="Yangi taom qo'shish"
-            >
-              <Plus className="h-4.5 w-4.5 stroke-[2.5px]" />
-            </button>
+        <div className="flex flex-col flex-1 animate-fade-in pb-24">
+          {/* Header */}
+          <header className="px-6 py-4 border-b border-zinc-150 dark:border-white/5 flex items-center justify-between">
+            <div className="text-left">
+              <h1 className="text-lg font-black">Menyu boshqaruvi</h1>
+              <p className="text-[11px] text-zinc-400 font-medium">
+                {partnerName} • {menuItems.length} ta taom
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowAddCategoryModal(true)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                  isDark ? "bg-[#393939]/60 border-white/10 text-white" : "bg-zinc-100 border-zinc-200 text-zinc-800"
+                }`}
+                title="Yangi toifa qo'shish"
+              >
+                <Plus className="h-3.5 w-3.5 stroke-[2.5px]" />
+                <span>Toifa</span>
+              </button>
+              <button
+                onClick={() => setShowAddMenuModal(true)}
+                className="px-3 py-2 rounded-xl bg-[#FF5A00] text-white text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-md shadow-[#FF5A00]/20 cursor-pointer"
+                title="Yangi taom qo'shish"
+              >
+                <Plus className="h-3.5 w-3.5 stroke-[2.5px]" />
+                <span>Taom</span>
+              </button>
+            </div>
           </header>
 
+          {/* Category Filter Pills */}
+          <div className="px-6 py-3 border-b border-zinc-100 dark:border-white/5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <button
+              onClick={() => handleSelectCategory("all")}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                selectedMenuCategory === "all"
+                  ? "bg-[#FF5A00] text-white shadow-sm"
+                  : isDark
+                  ? "bg-white/5 text-zinc-400 hover:text-white"
+                  : "bg-zinc-100 text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              Barchasi ({menuItems.length})
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => handleSelectCategory(cat.id)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  selectedMenuCategory === cat.id
+                    ? "bg-[#FF5A00] text-white shadow-sm"
+                    : isDark
+                    ? "bg-white/5 text-zinc-400 hover:text-white"
+                    : "bg-zinc-100 text-zinc-600 hover:text-zinc-900"
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+            <button
+              onClick={() => setShowAddCategoryModal(true)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1 border border-dashed cursor-pointer transition-colors ${
+                isDark ? "border-white/20 text-zinc-400 hover:text-white" : "border-zinc-300 text-zinc-500 hover:text-zinc-900"
+              }`}
+            >
+              <Plus className="h-3 w-3" /> Toifa qo'shish
+            </button>
+          </div>
+
+          {/* Dishes List */}
           <main className="flex-1 overflow-y-auto px-6 py-4 space-y-3 text-left">
-            {menuItems.length === 0 ? (
-              [
-                { id: 1, name: "Jizz", price: "500 000 UZS", category: "Asosiy taomlar" },
-                { id: 2, name: "Qozon kabob", price: "300 000 UZS", category: "Asosiy taomlar" },
-                { id: 3, name: "Manti", price: "100 000 UZS", category: "Xamir taomlar" },
-                { id: 4, name: "Stake", price: "180 000 UZS", category: "Yevropa oshxonasi" },
-              ].map((m) => (
-                <div
-                  key={m.id}
-                  className={`p-4 rounded-2xl border flex items-center justify-between ${
-                    isDark ? "bg-[#393939]/30 border-white/5" : "bg-white border-zinc-150 shadow-sm"
-                  }`}
-                >
-                  <div className="space-y-0.5">
-                    <h3 className="font-bold text-sm">{m.name}</h3>
-                    <p className="text-[10px] text-zinc-400 font-semibold">{m.category}</p>
-                  </div>
-                  <span className="text-xs font-black text-primary">{m.price}</span>
+            {loadingData ? (
+              <div className="py-12 flex flex-col items-center justify-center space-y-3 text-zinc-400">
+                <Loader2 className="animate-spin h-7 w-7 text-[#FF5A00]" />
+                <p className="text-xs font-semibold">Taomlar yuklanmoqda...</p>
+              </div>
+            ) : menuItems.length === 0 ? (
+              <div
+                className={`py-12 px-6 rounded-3xl border text-center flex flex-col items-center gap-3 ${
+                  isDark ? "bg-[#393939]/20 border-white/5" : "bg-zinc-50 border-zinc-200"
+                }`}
+              >
+                <div className="w-14 h-14 rounded-2xl bg-[#FF5A00]/10 flex items-center justify-center text-[#FF5A00]">
+                  <Utensils className="h-7 w-7" />
                 </div>
-              ))
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold">Hozircha taomlar mavjud emas</h3>
+                  <p className="text-xs text-zinc-400 max-w-xs mx-auto">
+                    Ushbu filial menyusiga yangi taom qo'shing yoki tayyor namunaviy menyuni bir marta bosish bilan yuklang.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 w-full max-w-xs mt-2">
+                  <button
+                    onClick={handleSeedDefaultMenu}
+                    disabled={isSeedingMenu}
+                    className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isSeedingMenu ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    <span>Namunaviy menyu (7 ta)</span>
+                  </button>
+                  <button
+                    onClick={() => setShowAddMenuModal(true)}
+                    className="flex-1 py-3 px-4 rounded-xl bg-[#FF5A00] hover:bg-[#FF5A00]/90 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Taom qo'shish</span>
+                  </button>
+                </div>
+              </div>
             ) : (
               menuItems.map((item) => (
                 <div
                   key={item.id}
-                  className={`p-4 rounded-2xl border flex items-center justify-between ${
-                    isDark ? "bg-[#393939]/30 border-white/5" : "bg-white border-zinc-150 shadow-sm"
+                  className={`p-4 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
+                    isDark ? "bg-[#393939]/30 border-white/5 hover:border-white/15" : "bg-white border-zinc-150 shadow-sm hover:border-zinc-250"
                   }`}
                 >
-                  <div className="space-y-0.5">
-                    <h3 className="font-bold text-sm">{item.name}</h3>
-                    <p className="text-[10px] text-zinc-400 font-semibold">{item.is_available ? "Mavjud" : "Mavjud emas"}</p>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-12 h-12 rounded-xl bg-[#FF5A00]/10 flex items-center justify-center text-xl shrink-0">
+                      {getFoodEmoji(item.name)}
+                    </div>
+                    <div className="space-y-0.5 truncate">
+                      <h3 className="font-bold text-sm truncate">{item.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-500">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Mavjud
+                        </span>
+                        {item.discount_percent && Number(item.discount_percent) > 0 && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/10 text-rose-500">
+                            -{Number(item.discount_percent)}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-xs font-black text-primary">
-                    {Number(item.effective_price || 0).toLocaleString()} {item.currency}
-                  </span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="text-right">
+                      <span className="text-xs font-black text-[#FF5A00] block">
+                        {Number(item.effective_price || 0).toLocaleString()} {item.currency}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setItemToDelete(item)}
+                      className="p-2 rounded-xl text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                      title="Filial menyusidan o'chirish"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               ))
             )}
           </main>
 
-          {/* Add Menu Item Modal */}
+          {/* Modal 1: Add Category Modal */}
+          {showAddCategoryModal && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end justify-center animate-fade-in">
+              <div className="absolute inset-0" onClick={() => setShowAddCategoryModal(false)} />
+              <div
+                className={`w-full max-w-md rounded-t-[32px] px-6 pt-4 pb-8 flex flex-col gap-4 z-10 border-t relative text-left ${
+                  isDark ? "bg-[#2C2C2E] border-white/10" : "bg-white border-zinc-200"
+                }`}
+              >
+                <div className={`w-12 h-1 rounded-full mx-auto mb-2 ${isDark ? "bg-white/20" : "bg-zinc-250"}`} />
+                <div className="flex justify-between items-center">
+                  <h3 className="font-black text-base">Yangi toifa (kategoriya) qo'shish</h3>
+                  <button
+                    onClick={() => setShowAddCategoryModal(false)}
+                    className="p-1 rounded-full text-zinc-400 hover:text-zinc-600"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <form onSubmit={handleAddCategory} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold opacity-70 block mb-1">Toifa nomi</label>
+                    <input
+                      type="text"
+                      required
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="Masalan: Issiq taomlar"
+                      className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none ${
+                        isDark ? "border-white/10 bg-[#393939]" : "border-zinc-200 bg-zinc-50"
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold opacity-60 block mb-2">Tavsiya etilgan toifalar:</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        "Asosiy taomlar",
+                        "Salatlar & Gazaklar",
+                        "Xamir taomlar",
+                        "Ichimliklar",
+                        "Shirinliklar",
+                        "Kebab & Gril",
+                      ].map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setNewCategoryName(tag)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
+                            newCategoryName === tag
+                              ? "bg-[#FF5A00] text-white border-[#FF5A00]"
+                              : isDark
+                              ? "bg-white/5 border-white/10 text-zinc-300"
+                              : "bg-zinc-100 border-zinc-200 text-zinc-700"
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingMenu}
+                    className="w-full py-3.5 bg-[#FF5A00] hover:bg-[#FF5A00]/90 text-white font-extrabold text-xs rounded-2xl shadow-lg mt-2 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isSubmittingMenu && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <span>Toifani saqlash</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Modal 2: Add Menu Item Modal */}
           {showAddMenuModal && (
             <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end justify-center animate-fade-in">
               <div className="absolute inset-0" onClick={() => setShowAddMenuModal(false)} />
               <div
                 className={`w-full max-w-md rounded-t-[32px] px-6 pt-4 pb-8 flex flex-col gap-4 z-10 border-t relative text-left ${
-                  isDark ? "bg-[#393939] border-white/5" : "bg-white border-zinc-200"
+                  isDark ? "bg-[#2C2C2E] border-white/10" : "bg-white border-zinc-200"
                 }`}
               >
                 <div className={`w-12 h-1 rounded-full mx-auto mb-2 ${isDark ? "bg-white/20" : "bg-zinc-250"}`} />
-                <h3 className="font-black text-base">Yangi taom qo'shish</h3>
-                <form onSubmit={handleAddMenuItem} className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-black text-base">Yangi taom qo'shish</h3>
+                  <button
+                    onClick={() => setShowAddMenuModal(false)}
+                    className="p-1 rounded-full text-zinc-400 hover:text-zinc-600"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <form onSubmit={handleAddMenuItem} className="space-y-3.5">
                   <div>
-                    <label className="text-xs font-bold opacity-60 block mb-1">Taom nomi</label>
+                    <label className="text-xs font-bold opacity-70 block mb-1">Taom nomi</label>
                     <input
                       type="text"
                       required
                       value={newItemName}
                       onChange={(e) => setNewItemName(e.target.value)}
-                      placeholder="Masalan: Osh, Somsa"
+                      placeholder="Masalan: To'y Oshi, Qozon Kabob"
                       className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none ${
-                        isDark ? "border-white/10 bg-[#2C2C2E]" : "border-zinc-200 bg-zinc-50"
+                        isDark ? "border-white/10 bg-[#393939]" : "border-zinc-200 bg-zinc-50"
                       }`}
                     />
                   </div>
+
                   <div>
-                    <label className="text-xs font-bold opacity-60 block mb-1">Narxi (UZS)</label>
+                    <label className="text-xs font-bold opacity-70 block mb-1">Kategoriya / Toifa</label>
+                    {categories.length > 0 ? (
+                      <select
+                        value={newItemCategory || categories[0]?.id}
+                        onChange={(e) => setNewItemCategory(Number(e.target.value))}
+                        className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none cursor-pointer ${
+                          isDark ? "border-white/10 bg-[#393939] text-white" : "border-zinc-200 bg-zinc-50 text-zinc-900"
+                        }`}
+                      >
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="flex items-center justify-between p-3 rounded-xl border border-dashed border-amber-500/40 bg-amber-500/5 text-xs text-amber-500 font-semibold">
+                        <span>Hozircha toifalar yo'q ("Asosiy taomlar" avtomatik ochiladi)</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold opacity-70 block mb-1">Narxi (UZS)</label>
                     <input
                       type="text"
                       required
                       value={newItemPrice}
                       onChange={(e) => setNewItemPrice(e.target.value)}
-                      placeholder="150 000"
+                      placeholder="Masalan: 55 000"
                       className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none ${
-                        isDark ? "border-white/10 bg-[#2C2C2E]" : "border-zinc-200 bg-zinc-50"
+                        isDark ? "border-white/10 bg-[#393939]" : "border-zinc-200 bg-zinc-50"
                       }`}
                     />
                   </div>
+
+                  <div>
+                    <label className="text-xs font-bold opacity-70 block mb-1">Tarkibi yoki tavsif (ixtiyoriy)</label>
+                    <input
+                      type="text"
+                      value={newItemDescription}
+                      onChange={(e) => setNewItemDescription(e.target.value)}
+                      placeholder="Masalan: Go'sht, guruch, sabzi, zira"
+                      className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none ${
+                        isDark ? "border-white/10 bg-[#393939]" : "border-zinc-200 bg-zinc-50"
+                      }`}
+                    />
+                  </div>
+
                   <button
                     type="submit"
-                    className="w-full py-4 bg-[#FF5A00] text-white font-extrabold text-xs rounded-2xl shadow-lg mt-2 cursor-pointer"
+                    disabled={isSubmittingMenu}
+                    className="w-full py-3.5 bg-[#FF5A00] hover:bg-[#FF5A00]/90 text-white font-extrabold text-xs rounded-2xl shadow-lg mt-2 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    Menyuga saqlash
+                    {isSubmittingMenu && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <span>Menyuga saqlash</span>
                   </button>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* Modal 3: Delete Confirmation Modal */}
+          {itemToDelete && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+              <div className="absolute inset-0" onClick={() => setItemToDelete(null)} />
+              <div
+                className={`w-full max-w-sm rounded-3xl p-6 flex flex-col gap-4 z-10 border text-center ${
+                  isDark ? "bg-[#2C2C2E] border-white/10 text-white" : "bg-white border-zinc-200 text-zinc-900"
+                }`}
+              >
+                <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center mx-auto">
+                  <Trash2 className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base">Taomni o'chirish</h3>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    Haqiqatan ham <strong className="text-foreground font-bold">"{itemToDelete.name}"</strong> taomini filial menyusidan olib tashlamoqchimisiz?
+                  </p>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setItemToDelete(null)}
+                    className={`flex-1 py-3 rounded-xl font-bold text-xs border transition-colors cursor-pointer ${
+                      isDark ? "border-white/10 hover:bg-white/5" : "border-zinc-200 hover:bg-zinc-50"
+                    }`}
+                  >
+                    Bekor qilish
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSubmittingMenu}
+                    onClick={() => handleDeleteMenuItem(itemToDelete.id)}
+                    className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-500/20 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubmittingMenu && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    <span>O'chirish</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
