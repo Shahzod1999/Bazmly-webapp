@@ -100,6 +100,8 @@ export default function AdminPage() {
   const [bookingsSubTab, setBookingsSubTab] = useState<"list" | "table-board">("list");
   const [staff, setStaff] = useState<VenueStaffListItem[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItemListItem[]>([]);
+  const [allMenuItems, setAllMenuItems] = useState<MenuItemListItem[]>([]);
+  const [totalMenuCount, setTotalMenuCount] = useState<number>(0);
   const [categories, setCategories] = useState<MenuCategoryRead[]>([]);
   const [loadingData, setLoadingData] = useState(false);
 
@@ -285,6 +287,8 @@ export default function AdminPage() {
           setAnalytics(ana);
         }
         setMenuItems(items);
+        setAllMenuItems(items);
+        setTotalMenuCount(items.length);
         setStaff(staffList);
       } else if (activeTab === "bookings") {
         const [bookList, tbList] = await Promise.all([
@@ -297,12 +301,9 @@ export default function AdminPage() {
         const staffList = await partnerService.listStaff(activeVenueId).catch(() => []);
         setStaff(staffList);
       } else if (activeTab === "menu") {
-        let [cats, items] = await Promise.all([
+        let [cats, allVenueItems] = await Promise.all([
           partnerService.listCategories(currentGroup, activeVenueId).catch(() => []),
-          partnerService.listMenuItems(
-            activeVenueId,
-            selectedMenuCategory === "all" ? undefined : selectedMenuCategory
-          ).catch(() => []),
+          partnerService.listMenuItems(activeVenueId).catch(() => []),
         ]);
 
         // Agar guruhda toifalar hali bo'lmasa, standart toifalarni yaratamiz
@@ -318,23 +319,19 @@ export default function AdminPage() {
           cats = await partnerService.listCategories(currentGroup, activeVenueId).catch(() => []);
         }
 
-        // Agar bu filialda taomlar bo'sh bo'lsa, bazadagi mavjud taomlarni filialga biriktirib yuklaymiz
-        if (items.length === 0) {
-          const attachPromises = [];
-          for (let id = 1; id <= 30; id++) {
-            attachPromises.push(
-              partnerService.attachMenuItemToBranches(id, { venue_ids: [activeVenueId] }, activeVenueId).catch(() => null)
-            );
-          }
-          await Promise.all(attachPromises);
-          items = await partnerService.listMenuItems(
-            activeVenueId,
-            selectedMenuCategory === "all" ? undefined : selectedMenuCategory
-          ).catch(() => []);
-        }
-
         setCategories(cats);
-        setMenuItems(items);
+        setAllMenuItems(allVenueItems);
+        setTotalMenuCount(allVenueItems.length);
+
+        if (selectedMenuCategory === "all") {
+          setMenuItems(allVenueItems);
+        } else {
+          const filtered = await partnerService.listMenuItems(
+            activeVenueId,
+            selectedMenuCategory
+          ).catch(() => []);
+          setMenuItems(filtered);
+        }
       }
     } finally {
       setLoadingData(false);
@@ -579,15 +576,19 @@ export default function AdminPage() {
   const handleSelectCategory = async (catId: number | "all") => {
     setSelectedMenuCategory(catId);
     if (!activeVenueId) return;
+    if (catId === "all") {
+      setMenuItems(allMenuItems);
+      return;
+    }
     setLoadingData(true);
     try {
       const items = await partnerService.listMenuItems(
         activeVenueId,
-        catId === "all" ? undefined : catId
+        catId
       );
       setMenuItems(items);
     } catch {
-      showToast("Taomlarni yuklashda xatolik");
+      setMenuItems([]);
     } finally {
       setLoadingData(false);
     }
@@ -613,8 +614,7 @@ export default function AdminPage() {
       const cats = await partnerService.listCategories(currentGroup, activeVenueId).catch(() => []);
       setCategories(cats);
       setSelectedMenuCategory(newCat.id);
-      const items = await partnerService.listMenuItems(activeVenueId, newCat.id).catch(() => []);
-      setMenuItems(items);
+      setMenuItems([]);
     } catch (err: any) {
       showToast(err?.message || "Kategoriya yaratishda xatolik");
     } finally {
@@ -634,7 +634,7 @@ export default function AdminPage() {
     try {
       let targetCategoryId = newItemCategory;
 
-      // Agar kategoriya mavjud bo'lmasa, avtomatik yaratiladi
+      // Agar kategoriya mavjud bo'lmasa, avtomatik birinchi toifa olinadi
       if (!targetCategoryId) {
         if (categories.length > 0) {
           targetCategoryId = categories[0].id;
@@ -661,21 +661,12 @@ export default function AdminPage() {
             description: newItemDescription.trim() || null,
             base_price: cleanPrice,
             currency: "UZS",
-            sort_order: menuItems.length + 1,
+            sort_order: (allMenuItems.length || menuItems.length) + 1,
             has_variants: false,
           },
         },
         activeVenueId
       ).catch(() => null);
-
-      // 2. Taomni ushbu filialga biriktirish (3-bosqich konstruktor)
-      const attachPromises = [];
-      for (let id = 1; id <= 60; id++) {
-        attachPromises.push(
-          partnerService.attachMenuItemToBranches(id, { venue_ids: [activeVenueId] }, activeVenueId).catch(() => null)
-        );
-      }
-      await Promise.all(attachPromises);
 
       showToast(`"${newItemName.trim()}" menyuga muvaffaqiyatli qo'shildi!`);
       setShowAddMenuModal(false);
@@ -683,16 +674,16 @@ export default function AdminPage() {
       setNewItemPrice("");
       setNewItemDescription("");
 
-      // 3. Ro'yxatni yangilash
+      // 2. Ro'yxatni yangilash
       const [updatedCats, updatedItems] = await Promise.all([
         partnerService.listCategories(currentGroup, activeVenueId).catch(() => []),
-        partnerService.listMenuItems(
-          activeVenueId,
-          selectedMenuCategory === "all" ? undefined : selectedMenuCategory
-        ).catch(() => []),
+        partnerService.listMenuItems(activeVenueId).catch(() => []),
       ]);
       setCategories(updatedCats);
+      setAllMenuItems(updatedItems);
+      setTotalMenuCount(updatedItems.length);
       setMenuItems(updatedItems);
+      setSelectedMenuCategory("all");
     } catch (err: any) {
       showToast(err?.message || "Taom qo'shishda xatolik yuz berdi");
     } finally {
@@ -708,11 +699,19 @@ export default function AdminPage() {
       await partnerService.attachMenuItemToBranches(itemId, { venue_ids: [] }, activeVenueId);
       showToast("Taom filial menyusidan o'chirildi!");
       setItemToDelete(null);
-      const items = await partnerService.listMenuItems(
-        activeVenueId,
-        selectedMenuCategory === "all" ? undefined : selectedMenuCategory
-      ).catch(() => []);
-      setMenuItems(items);
+      const [updatedCats, allItems] = await Promise.all([
+        partnerService.listCategories(myGroupId || 1, activeVenueId).catch(() => []),
+        partnerService.listMenuItems(activeVenueId).catch(() => []),
+      ]);
+      setCategories(updatedCats);
+      setAllMenuItems(allItems);
+      setTotalMenuCount(allItems.length);
+      if (selectedMenuCategory === "all") {
+        setMenuItems(allItems);
+      } else {
+        const filtered = await partnerService.listMenuItems(activeVenueId, selectedMenuCategory).catch(() => []);
+        setMenuItems(filtered);
+      }
     } catch (err: any) {
       showToast(err?.message || "O'chirishda xatolik");
     } finally {
@@ -724,71 +723,38 @@ export default function AdminPage() {
     if (!activeVenueId) return;
     const currentGroup = myGroupId || 1;
     setIsSeedingMenu(true);
-    showToast("Bazadan taomlar menyuga yuklanmoqda...");
     try {
-      const catNames = ["Asosiy taomlar", "Salatlar & Gazaklar", "Ichimliklar"];
-      const createdCats: MenuCategoryRead[] = [];
-
-      for (let i = 0; i < catNames.length; i++) {
-        const existing = categories.find((c) => c.name.toLowerCase() === catNames[i].toLowerCase());
-        if (existing) {
-          createdCats.push(existing);
-        } else {
-          const newC = await partnerService.createCategory(
-            { name: catNames[i], sort_order: i + 1 },
-            currentGroup,
-            activeVenueId
-          ).catch(() => null);
-          if (newC) createdCats.push(newC);
-        }
+      // 1. Agar filialda allaqachon taomlar bo'lsa, ularni to'g'ridan-to'g'ri ko'rsatamiz
+      const currentItems = await partnerService.listMenuItems(activeVenueId).catch(() => []);
+      if (currentItems.length > 0) {
+        setAllMenuItems(currentItems);
+        setMenuItems(currentItems);
+        setTotalMenuCount(currentItems.length);
+        setSelectedMenuCategory("all");
+        showToast(`Filialingizda mavjud ${currentItems.length} ta taom menyuga yuklandi!`);
+        return;
       }
 
-      const sampleDishes = [
-        { name: "To'y Oshi (Devzira)", price: 55000, catIdx: 0, desc: "Qo'y go'shti, devzira guruch, qazi, no'xat" },
-        { name: "Qozon Kabob", price: 85000, catIdx: 0, desc: "Qovurilgan qo'zichoq va qarsildoq kartoshka" },
-        { name: "Manti (Go'shtli)", price: 40000, catIdx: 0, desc: "Shirali maydalangan go'sht va mayin xamir" },
-        { name: "Achchiq-chuchuk", price: 20000, catIdx: 1, desc: "Yangi pomidor, piyoz, rayhon" },
-        { name: "Suzma ko'katlar bilan", price: 18000, catIdx: 1, desc: "Tabiiy suzma, kashnich, sarimsoq" },
-        { name: "Maxsus Ko'k Choy", price: 12000, catIdx: 2, desc: "Limon va tog' yalpizi bilan damlangan" },
-        { name: "Tabiiy Anor Sharbati", price: 30000, catIdx: 2, desc: "100% yangi siqilgan sharbat" },
-      ];
-
-      for (const dish of sampleDishes) {
-        const cat = createdCats[dish.catIdx] || createdCats[0];
-        if (!cat) continue;
-        await partnerService.createMenuItem(
-          {
-            payload: {
-              menu_category_id: cat.id,
-              name: dish.name,
-              description: dish.desc,
-              base_price: dish.price,
-              currency: "UZS",
-              sort_order: 0,
-              has_variants: false,
-            },
-          },
-          activeVenueId
-        ).catch(() => null);
-      }
-
-      // 3. Barcha bazadagi taomlarni filialga biriktirish
-      const attachPromises = [];
-      for (let id = 1; id <= 60; id++) {
-        attachPromises.push(
+      // 2. Agar filialda taomlar bo'sh bo'lsa, bazada mavjud taomlarni (1..19) filialga biriktiramiz
+      showToast("Bazadan taomlar menyuga yuklanmoqda...");
+      const knownIds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+      await Promise.all(
+        knownIds.map((id) =>
           partnerService.attachMenuItemToBranches(id, { venue_ids: [activeVenueId] }, activeVenueId).catch(() => null)
-        );
-      }
-      await Promise.all(attachPromises);
+        )
+      );
 
-      showToast("Namunaviy menyu muvaffaqiyatli saqlandi!");
+      // 3. Yangilangan ro'yxatni olish
       const [newCats, newItems] = await Promise.all([
         partnerService.listCategories(currentGroup, activeVenueId).catch(() => []),
         partnerService.listMenuItems(activeVenueId).catch(() => []),
       ]);
       setCategories(newCats);
+      setAllMenuItems(newItems);
       setMenuItems(newItems);
+      setTotalMenuCount(newItems.length);
       setSelectedMenuCategory("all");
+      showToast("Namunaviy taomlar muvaffaqiyatli yuklandi!");
     } catch (err: any) {
       showToast(err?.message || "Namunaviy menyuni yuklashda xatolik");
     } finally {
@@ -1381,7 +1347,7 @@ export default function AdminPage() {
             <div className="text-left">
               <h1 className="text-lg font-black">Menyu boshqaruvi</h1>
               <p className="text-[11px] text-zinc-400 font-medium">
-                {partnerName} • {menuItems.length} ta taom
+                {partnerName} • {totalMenuCount} ta taom
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -1418,7 +1384,7 @@ export default function AdminPage() {
                   : "bg-zinc-100 text-zinc-600 hover:text-zinc-900"
               }`}
             >
-              Barchasi ({menuItems.length})
+              Barchasi ({totalMenuCount})
             </button>
             {categories.map((cat) => (
               <button
@@ -1432,7 +1398,7 @@ export default function AdminPage() {
                     : "bg-zinc-100 text-zinc-600 hover:text-zinc-900"
                 }`}
               >
-                {cat.name}
+                {cat.name} {cat.item_count !== undefined && cat.item_count > 0 ? `(${cat.item_count})` : ""}
               </button>
             ))}
             <button
@@ -1462,32 +1428,47 @@ export default function AdminPage() {
                   <Utensils className="h-7 w-7" />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-sm font-bold">Hozircha taomlar mavjud emas</h3>
+                  <h3 className="text-sm font-bold">
+                    {selectedMenuCategory === "all"
+                      ? "Hozircha taomlar mavjud emas"
+                      : "Ushbu toifada taomlar mavjud emas"}
+                  </h3>
                   <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-                    Ushbu filial menyusiga yangi taom qo'shing yoki tayyor namunaviy menyuni bir marta bosish bilan yuklang.
+                    {selectedMenuCategory === "all"
+                      ? "Ushbu filial menyusiga yangi taom qo'shing yoki tayyor namunaviy menyuni bir marta bosish bilan yuklang."
+                      : "Boshqa toifani tanlang yoki barcha mavjud taomlarni ko'rish uchun quyidagi tugmani bosing."}
                   </p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 w-full max-w-xs mt-2">
+                {selectedMenuCategory !== "all" ? (
                   <button
-                    onClick={handleSeedDefaultMenu}
-                    disabled={isSeedingMenu}
-                    className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer disabled:opacity-50"
+                    onClick={() => handleSelectCategory("all")}
+                    className="py-2.5 px-5 rounded-xl bg-[#FF5A00] text-white font-bold text-xs flex items-center gap-2 shadow-md hover:bg-[#FF5A00]/90 transition-all cursor-pointer mt-2"
                   >
-                    {isSeedingMenu ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4" />
-                    )}
-                    <span>Namunaviy menyu (7 ta)</span>
+                    <span>Barcha taomlarni ko'rish ({totalMenuCount})</span>
                   </button>
-                  <button
-                    onClick={() => setShowAddMenuModal(true)}
-                    className="flex-1 py-3 px-4 rounded-xl bg-[#FF5A00] hover:bg-[#FF5A00]/90 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Taom qo'shish</span>
-                  </button>
-                </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row gap-2 w-full max-w-xs mt-2">
+                    <button
+                      onClick={handleSeedDefaultMenu}
+                      disabled={isSeedingMenu}
+                      className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {isSeedingMenu ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
+                      <span>Namunaviy menyu (19 ta)</span>
+                    </button>
+                    <button
+                      onClick={() => setShowAddMenuModal(true)}
+                      className="flex-1 py-3 px-4 rounded-xl bg-[#FF5A00] hover:bg-[#FF5A00]/90 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>Taom qo'shish</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               menuItems.map((item) => (
