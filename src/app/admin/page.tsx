@@ -33,6 +33,7 @@ import {
   Loader2,
   PlusCircle,
   Sparkles,
+  Copy,
 } from "lucide-react";
 import {
   partnerService,
@@ -46,6 +47,8 @@ import {
   MenuCategoryRead,
   DashboardRead,
   TableBoardRow,
+  StaffCountsRead,
+  StaffInvitationCreated,
   authService,
   getAccessToken,
   clearTokens,
@@ -127,11 +130,15 @@ export default function AdminPage() {
   const [newVenuePhone, setNewVenuePhone] = useState("");
   const [newVenueSeats, setNewVenueSeats] = useState("100");
 
-  // Add Staff Modal
+  // Add Staff Modal & Management
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [newStaffName, setNewStaffName] = useState("");
-  const [newStaffRole, setNewStaffRole] = useState("waiter");
+  const [newStaffRole, setNewStaffRole] = useState("4"); // default 4 (Ofitsant)
   const [newStaffPhone, setNewStaffPhone] = useState("");
+  const [staffCounts, setStaffCounts] = useState<StaffCountsRead | null>(null);
+  const [createdInvitation, setCreatedInvitation] = useState<StaffInvitationCreated | null>(null);
+  const [isSubmittingStaff, setIsSubmittingStaff] = useState(false);
+  const [staffRoleFilter, setStaffRoleFilter] = useState<string | "all">("all");
 
   // Add Menu Item Modal
   const [showAddMenuModal, setShowAddMenuModal] = useState(false);
@@ -281,7 +288,7 @@ export default function AdminPage() {
         const [ana, items, staffList] = await Promise.all([
           partnerService.getDashboardAnalytics(currentGroup, activeVenueId).catch(() => null),
           partnerService.listMenuItems(activeVenueId).catch(() => []),
-          partnerService.listStaff(activeVenueId).catch(() => []),
+          partnerService.listStaff(currentGroup).catch(() => []),
         ]);
         if (ana) {
           setAnalytics(ana);
@@ -298,8 +305,12 @@ export default function AdminPage() {
         setBookings(bookList);
         setTableBoard(tbList);
       } else if (activeTab === "staff") {
-        const staffList = await partnerService.listStaff(activeVenueId).catch(() => []);
+        const [staffList, counts] = await Promise.all([
+          partnerService.listStaff(currentGroup).catch(() => []),
+          partnerService.getStaffCounts(currentGroup).catch(() => null),
+        ]);
         setStaff(staffList);
+        if (counts) setStaffCounts(counts);
       } else if (activeTab === "menu") {
         let [cats, allVenueItems] = await Promise.all([
           partnerService.listCategories(currentGroup, activeVenueId).catch(() => []),
@@ -538,14 +549,21 @@ export default function AdminPage() {
 
   const handleToggleStaffActive = async (staffId: number, currentActive: boolean) => {
     if (!activeVenueId) return;
+    const currentGroup =
+      myGroupId ||
+      (venuesList.find((v) => v.id === activeVenueId) as any)?.venue_group_id ||
+      (venuesList.find((v) => v.id === activeVenueId) as any)?.group_id ||
+      1;
+
     try {
-      await partnerService.setStaffActive(activeVenueId, staffId, !currentActive).catch(() => {});
+      await partnerService.setStaffActive(staffId, activeVenueId, !currentActive);
       setStaff((prev) =>
         prev.map((s) => (s.id === staffId ? { ...s, is_active: !currentActive } : s))
       );
       showToast(!currentActive ? "Xodim faollashtirildi" : "Xodim nofaol qilindi");
-    } catch {
-      showToast(!currentActive ? "Xodim faollashtirildi" : "Xodim nofaol qilindi");
+      partnerService.getStaffCounts(currentGroup).then((c) => { if (c) setStaffCounts(c); }).catch(() => null);
+    } catch (err: any) {
+      showToast(err?.message || "Holatni o'zgartirishda xatolik");
     }
   };
 
@@ -555,21 +573,56 @@ export default function AdminPage() {
       showToast("Barcha maydonlarni to'ldiring!");
       return;
     }
+    const currentGroup =
+      myGroupId ||
+      (venuesList.find((v) => v.id === activeVenueId) as any)?.venue_group_id ||
+      (venuesList.find((v) => v.id === activeVenueId) as any)?.group_id ||
+      1;
+
+    setIsSubmittingStaff(true);
     try {
-      await partnerService.inviteStaff(activeVenueId, {
-        full_name: newStaffName.trim(),
-        phone: newStaffPhone.trim(),
-        staff_role_id: newStaffRole === "manager" ? 1 : newStaffRole === "chef" ? 2 : 3,
-        venue_id: activeVenueId,
-      });
-      showToast("Yangi xodim muvaffaqiyatli taklif qilindi!");
+      const roleId = Number(newStaffRole) || 4;
+      const cleanPhone = newStaffPhone.trim().startsWith("+") ? newStaffPhone.trim() : `+${newStaffPhone.trim()}`;
+
+      const res = await partnerService.inviteStaff(
+        currentGroup,
+        {
+          full_name: newStaffName.trim(),
+          phone: cleanPhone,
+          staff_role_id: roleId,
+          venue_id: activeVenueId,
+        },
+        activeVenueId
+      );
+
+      setCreatedInvitation(res);
       setShowAddStaffModal(false);
       setNewStaffName("");
       setNewStaffPhone("");
+      showToast("Xodim taklifnomasi yaratildi!");
       loadVenueData();
     } catch (err: any) {
-      showToast(err?.message || "Xodim qo'shildi");
-      setShowAddStaffModal(false);
+      showToast(err?.message || "Xodim taklif qilishda xatolik yuz berdi");
+    } finally {
+      setIsSubmittingStaff(false);
+    }
+  };
+
+  const handleQuickActivateStaff = async (invitation: StaffInvitationCreated) => {
+    try {
+      setIsSubmittingStaff(true);
+      await partnerService.acceptInvitation(invitation.phone, {
+        login: invitation.login,
+        temporary_password: invitation.temporary_password,
+        new_password: "Password123!",
+      });
+      showToast(`${invitation.full_name} muvaffaqiyatli faollashtirildi!`);
+      setCreatedInvitation(null);
+      loadVenueData();
+    } catch (err: any) {
+      showToast(err?.message || "Faollashtirishda xatolik");
+    } finally {
+      setIsSubmittingStaff(false);
     }
   };
 
@@ -1735,86 +1788,149 @@ export default function AdminPage() {
 
       {/* TAB 4: XODIMLAR (STAFF VIEW) */}
       {activeTab === "staff" && (
-        <div className="flex flex-col flex-1 animate-fade-in pb-20">
+        <div className="flex flex-col flex-1 animate-fade-in pb-24">
           <header className="px-6 py-5 border-b border-zinc-100 dark:border-white/5 flex items-center justify-between">
-            <h1 className="text-xl font-black">Xodimlar ro'yxati</h1>
+            <div className="text-left">
+              <h1 className="text-xl font-black">Xodimlar ro'yxati</h1>
+              <p className="text-[11px] text-zinc-400 font-medium mt-0.5">
+                {staffCounts
+                  ? `Jami: ${staffCounts.total} • Faol: ${staffCounts.active} • Nofaol: ${staffCounts.inactive}`
+                  : `${staff.length} nafar xodim`}
+              </p>
+            </div>
             <button
               onClick={() => setShowAddStaffModal(true)}
-              className="p-2 rounded-xl bg-[#FF5A00] text-white flex items-center justify-center active:scale-95 transition-all shadow-md shadow-[#FF5A00]/10 cursor-pointer"
+              className="p-2.5 rounded-xl bg-[#FF5A00] text-white flex items-center justify-center active:scale-95 transition-all shadow-md shadow-[#FF5A00]/20 cursor-pointer hover:bg-[#FF5A00]/90"
               title="Yangi xodim qo'shish"
             >
               <Plus className="h-4.5 w-4.5 stroke-[2.5px]" />
             </button>
           </header>
 
+          {/* Role Filter Pills */}
+          <div className="px-6 py-3 border-b border-zinc-100 dark:border-white/5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+            {[
+              { id: "all", label: `Barchasi (${staff.length})` },
+              { id: "4", label: `Ofitsiantlar (${staff.filter((s) => s.staff_role_id === 4).length})` },
+              { id: "3", label: `Menejerlar (${staff.filter((s) => s.staff_role_id === 3).length})` },
+              { id: "5", label: `Oshpazlar (${staff.filter((s) => s.staff_role_id === 5).length})` },
+              { id: "7", label: `Qo'riqchilar (${staff.filter((s) => s.staff_role_id === 7).length})` },
+              { id: "1", label: `Egalar (${staff.filter((s) => s.staff_role_id === 1).length})` },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setStaffRoleFilter(tab.id)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  staffRoleFilter === tab.id
+                    ? "bg-[#FF5A00] text-white shadow-sm"
+                    : isDark
+                    ? "bg-white/5 text-zinc-400 hover:text-white"
+                    : "bg-zinc-100 text-zinc-600 hover:text-zinc-900"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           <main className="flex-1 overflow-y-auto px-6 py-4 space-y-3 text-left">
-            {staff.length === 0 ? (
-              [
-                { id: "1", name: "Jahongir Olimov", role: "Menejer", status: "active", phone: "+998 90 123 45 67" },
-                { id: "2", name: "Sardor Raimov", role: "Bosh oshpaz", status: "active", phone: "+998 93 765 43 21" },
-                { id: "3", name: "Alisher Ubaydullaev", role: "Ofitsiant", status: "resting", phone: "+998 99 999 88 77" },
-              ].map((m) => (
-                <div
-                  key={m.id}
-                  className={`p-4 rounded-2xl border flex items-center justify-between ${
-                    isDark ? "bg-[#393939]/30 border-white/5" : "bg-white border-zinc-150 shadow-sm"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-zinc-100 dark:bg-white/5">
-                      <User className="w-5 h-5 text-zinc-600 dark:text-zinc-300" />
-                    </div>
-                    <div>
-                      <h3 className="font-extrabold text-sm">{m.name}</h3>
-                      <p className="text-[10px] text-zinc-400 font-medium">{m.role} • {m.phone}</p>
-                    </div>
-                  </div>
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            {loadingData ? (
+              <div className="py-12 flex flex-col items-center justify-center space-y-3 text-zinc-400">
+                <Loader2 className="animate-spin h-7 w-7 text-[#FF5A00]" />
+                <p className="text-xs font-semibold">Xodimlar yuklanmoqda...</p>
+              </div>
+            ) : staff.filter((s) => (staffRoleFilter === "all" ? true : s.staff_role_id === Number(staffRoleFilter))).length === 0 ? (
+              <div
+                className={`py-12 px-6 rounded-3xl border text-center flex flex-col items-center gap-3 ${
+                  isDark ? "bg-[#393939]/20 border-white/5" : "bg-zinc-50 border-zinc-200"
+                }`}
+              >
+                <div className="w-14 h-14 rounded-2xl bg-[#FF5A00]/10 flex items-center justify-center text-[#FF5A00]">
+                  <Users className="h-7 w-7" />
                 </div>
-              ))
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold">Ushbu toifada xodimlar topilmadi</h3>
+                  <p className="text-xs text-zinc-400 max-w-xs mx-auto">
+                    Yangi xodimni taklif qilish uchun quyidagi tugmani bosing.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAddStaffModal(true)}
+                  className="py-2.5 px-5 rounded-xl bg-[#FF5A00] text-white font-bold text-xs flex items-center gap-2 shadow-md hover:bg-[#FF5A00]/90 transition-all cursor-pointer mt-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Xodim qo'shish</span>
+                </button>
+              </div>
             ) : (
-              staff.map((member) => (
-                <div
-                  key={member.id}
-                  className={`p-4 rounded-2xl border flex items-center justify-between ${
-                    isDark ? "bg-[#393939]/30 border-white/5" : "bg-white border-zinc-150 shadow-sm"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-zinc-100 dark:bg-white/5">
-                      <User className="w-5 h-5 text-zinc-600 dark:text-zinc-300" />
-                    </div>
-                    <div>
-                      <h3 className="font-extrabold text-sm">{member.user.first_name} {member.user.last_name || ""}</h3>
-                      <p className="text-[10px] text-zinc-400 font-medium">
-                        {member.role_name}
-                      </p>
-                    </div>
-                  </div>
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full ${
-                      member.is_active ? "bg-emerald-500" : "bg-zinc-400"
+              staff
+                .filter((s) => (staffRoleFilter === "all" ? true : s.staff_role_id === Number(staffRoleFilter)))
+                .map((member) => (
+                  <div
+                    key={member.id}
+                    className={`p-4 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
+                      isDark ? "bg-[#393939]/30 border-white/5 hover:border-white/10" : "bg-white border-zinc-150 shadow-sm hover:border-zinc-250"
                     }`}
-                  />
-                </div>
-              ))
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-[#FF5A00]/10 text-[#FF5A00] font-black text-sm shrink-0">
+                        {member.user.first_name?.[0] || "U"}{member.user.last_name?.[0] || ""}
+                      </div>
+                      <div className="space-y-0.5 truncate">
+                        <h3 className="font-extrabold text-sm truncate">
+                          {member.user.first_name} {member.user.last_name || ""}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-zinc-400 font-medium">
+                            {member.role_name}
+                          </span>
+                          {member.staff_role_id === 1 && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-500">
+                              Asosiy
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleToggleStaffActive(member.id, member.is_active)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                        member.is_active
+                          ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20"
+                          : "bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20 border border-zinc-500/20"
+                      }`}
+                      title={member.is_active ? "Nofaol qilish uchun bosing" : "Faollashtirish uchun bosing"}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${member.is_active ? "bg-emerald-500" : "bg-zinc-400"}`} />
+                      <span>{member.is_active ? "Faol" : "Nofaol"}</span>
+                    </button>
+                  </div>
+                ))
             )}
           </main>
 
-          {/* Add Staff Simple Modal Drawer */}
+          {/* Add Staff Modal Drawer */}
           {showAddStaffModal && (
             <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end justify-center animate-fade-in">
               <div className="absolute inset-0" onClick={() => setShowAddStaffModal(false)} />
               <div
                 className={`w-full max-w-md rounded-t-[32px] px-6 pt-4 pb-8 flex flex-col gap-4 z-10 border-t relative text-left ${
-                  isDark ? "bg-[#393939] border-white/5" : "bg-white border-zinc-200"
+                  isDark ? "bg-[#2C2C2E] border-white/10" : "bg-white border-zinc-200"
                 }`}
               >
                 <div className={`w-12 h-1 rounded-full mx-auto mb-2 ${isDark ? "bg-white/20" : "bg-zinc-250"}`} />
-                <h3 className="font-black text-base">Yangi xodim qo'shish</h3>
+                <div className="flex justify-between items-center">
+                  <h3 className="font-black text-base">Yangi xodim qo'shish</h3>
+                  <button
+                    onClick={() => setShowAddStaffModal(false)}
+                    className="p-1 rounded-lg hover:bg-white/10 text-zinc-400"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
                 <form onSubmit={handleAddStaff} className="space-y-4">
                   <div>
-                    <label className="text-xs font-bold opacity-60 block mb-1">Ism</label>
+                    <label className="text-xs font-bold opacity-60 block mb-1">To'liq ism-sharif</label>
                     <input
                       type="text"
                       required
@@ -1822,7 +1938,7 @@ export default function AdminPage() {
                       onChange={(e) => setNewStaffName(e.target.value)}
                       placeholder="Sardor Raimov"
                       className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none ${
-                        isDark ? "border-white/10 bg-[#2C2C2E]" : "border-zinc-200 bg-zinc-50"
+                        isDark ? "border-white/10 bg-[#393939]/50 focus:border-[#FF5A00]" : "border-zinc-200 bg-zinc-50 focus:border-[#FF5A00]"
                       }`}
                     />
                   </div>
@@ -1831,14 +1947,16 @@ export default function AdminPage() {
                     <select
                       value={newStaffRole}
                       onChange={(e) => setNewStaffRole(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none ${
-                        isDark ? "border-white/10 bg-[#2C2C2E]" : "border-zinc-200 bg-zinc-50"
+                      className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none cursor-pointer ${
+                        isDark ? "border-white/10 bg-[#393939]/50 focus:border-[#FF5A00]" : "border-zinc-200 bg-zinc-50 focus:border-[#FF5A00]"
                       }`}
                     >
-                      <option value="waiter">Ofitsiant</option>
-                      <option value="hostess">Xostes</option>
-                      <option value="manager">Menejer</option>
-                      <option value="chef">Oshpaz</option>
+                      <option value="4">Ofitsiant</option>
+                      <option value="3">Menejer</option>
+                      <option value="5">Bosh oshpaz</option>
+                      <option value="6">Oshpaz yordamchisi</option>
+                      <option value="7">Qo'riqchi</option>
+                      <option value="2">Admin</option>
                     </select>
                   </div>
                   <div>
@@ -1848,19 +1966,116 @@ export default function AdminPage() {
                       required
                       value={newStaffPhone}
                       onChange={(e) => setNewStaffPhone(e.target.value)}
-                      placeholder="+998 90 123 45 67"
+                      placeholder="+998901234567"
                       className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none ${
-                        isDark ? "border-white/10 bg-[#2C2C2E]" : "border-zinc-200 bg-zinc-50"
+                        isDark ? "border-white/10 bg-[#393939]/50 focus:border-[#FF5A00]" : "border-zinc-200 bg-zinc-50 focus:border-[#FF5A00]"
                       }`}
                     />
                   </div>
                   <button
                     type="submit"
-                    className="w-full py-4 bg-[#FF5A00] text-white font-extrabold text-xs rounded-2xl shadow-lg mt-2 cursor-pointer"
+                    disabled={isSubmittingStaff}
+                    className="w-full py-4 bg-[#FF5A00] hover:bg-[#FF5A00]/90 text-white font-extrabold text-xs rounded-2xl shadow-lg mt-2 cursor-pointer transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    Xodimni taklif qilish
+                    {isSubmittingStaff && <Loader2 className="w-4 h-4 animate-spin" />}
+                    <span>Xodimni taklif qilish</span>
                   </button>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* Created Staff Invitation Credentials Modal */}
+          {createdInvitation && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+              <div
+                className={`w-full max-w-sm rounded-3xl p-6 flex flex-col gap-4 z-10 border relative text-left shadow-2xl ${
+                  isDark ? "bg-[#2C2C2E] border-white/10" : "bg-white border-zinc-200"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <button
+                    onClick={() => setCreatedInvitation(null)}
+                    className="p-2 rounded-xl text-zinc-400 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div>
+                  <h3 className="text-base font-black">Xodim taklifnomasi yaratildi!</h3>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Ushbu login va parolni xodimga taqdim eting.
+                  </p>
+                </div>
+
+                <div className={`p-4 rounded-2xl border space-y-2.5 ${isDark ? "bg-[#393939]/40 border-white/10" : "bg-zinc-50 border-zinc-200"}`}>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-400 font-semibold">Xodim:</span>
+                    <span className="font-extrabold">{createdInvitation.full_name}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-400 font-semibold">Telefon:</span>
+                    <span className="font-extrabold">{createdInvitation.phone}</span>
+                  </div>
+                  <div className="border-t border-zinc-200/50 dark:border-white/5 pt-2 flex items-center justify-between">
+                    <div className="text-xs">
+                      <span className="text-zinc-400 block font-semibold text-[10px]">Login:</span>
+                      <span className="font-mono font-black text-sm text-[#FF5A00]">{createdInvitation.login}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(createdInvitation.login);
+                        showToast("Login nusxalandi!");
+                      }}
+                      className="p-1.5 rounded-lg bg-zinc-200 dark:bg-white/10 hover:bg-zinc-300 text-xs font-bold cursor-pointer"
+                      title="Nusxa olish"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs">
+                      <span className="text-zinc-400 block font-semibold text-[10px]">Vaqtinchalik parol:</span>
+                      <span className="font-mono font-black text-sm text-emerald-500">{createdInvitation.temporary_password}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(createdInvitation.temporary_password);
+                        showToast("Parol nusxalandi!");
+                      }}
+                      className="p-1.5 rounded-lg bg-zinc-200 dark:bg-white/10 hover:bg-zinc-300 text-xs font-bold cursor-pointer"
+                      title="Nusxa olish"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 pt-1">
+                  <button
+                    onClick={() => handleQuickActivateStaff(createdInvitation)}
+                    disabled={isSubmittingStaff}
+                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubmittingStaff ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    <span>Darhol faollashtirish (ro'yxatga qo'shish)</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const shareText = `Bazmly tizimiga xodim taklifnomasi:\nIsm: ${createdInvitation.full_name}\nLogin: ${createdInvitation.login}\nParol: ${createdInvitation.temporary_password}`;
+                      navigator.clipboard.writeText(shareText);
+                      showToast("Barcha ma'lumotlar nusxalandi!");
+                      setCreatedInvitation(null);
+                    }}
+                    className="w-full py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Ma'lumotlarni nusxalab yopish
+                  </button>
+                </div>
               </div>
             </div>
           )}
