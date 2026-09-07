@@ -23,7 +23,6 @@ import {
   Check,
   Globe,
   Bell,
-  Heart,
   Sparkles,
 } from "lucide-react";
 import Navbar from "@/components/navbar";
@@ -54,15 +53,11 @@ export default function WelcomePage() {
   const [mounted, setMounted] = useState(false);
   const { user, isAuthenticated } = useAuth();
   const [isRegistered, setIsRegistered] = useState(true);
-  const [activeTab, setActiveTab] = useState<"Umumiy" | "Restoranlar" | "To'yxonalar" | "Sevimlilar">("Umumiy");
+  const [activeTab, setActiveTab] = useState<"Umumiy" | "Restoranlar" | "To'yxonalar">("Umumiy");
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showBookingSuccessToast, setShowBookingSuccessToast] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const { theme, toggleTheme } = useTheme();
-
-  // Stories & Viewer States
-  const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
-  const [storyProgress, setStoryProgress] = useState(0);
 
   // Notifications Modal States
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
@@ -251,29 +246,6 @@ export default function WelcomePage() {
     }
   }, [isAuthenticated, user]);
 
-  // Stories progress timer
-  useEffect(() => {
-    if (activeStoryIndex === null) {
-      setStoryProgress(0);
-      return;
-    }
-    const timer = setInterval(() => {
-      setStoryProgress((prev) => {
-        if (prev >= 100) {
-          if (venues.length > 0 && activeStoryIndex < Math.min(venues.length - 1, 4)) {
-            setActiveStoryIndex((idx) => (idx !== null ? idx + 1 : null));
-            return 0;
-          } else {
-            setActiveStoryIndex(null);
-            return 0;
-          }
-        }
-        return prev + 2;
-      });
-    }, 100);
-    return () => clearInterval(timer);
-  }, [activeStoryIndex, venues.length]);
-
   // Notifications fetch
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -286,11 +258,11 @@ export default function WelcomePage() {
     }
   }, [isAuthenticated, user]);
 
-  // Hide global bottom bar when Story Viewer, Notifications, or Sheets are open
+  // Hide global bottom bar when Notifications or Sheets are open
   useEffect(() => {
     const bottomNav = document.getElementById("global-bottom-nav");
     if (bottomNav) {
-      if (activeStoryIndex !== null || showNotificationsModal || showPartySheet || showLocationSearch) {
+      if (showNotificationsModal || showPartySheet || showLocationSearch) {
         bottomNav.style.transform = "translateY(150%)";
         bottomNav.style.opacity = "0";
         bottomNav.style.pointerEvents = "none";
@@ -307,7 +279,7 @@ export default function WelcomePage() {
         bottomNav.style.pointerEvents = "auto";
       }
     };
-  }, [activeStoryIndex, showNotificationsModal, showPartySheet, showLocationSearch]);
+  }, [showNotificationsModal, showPartySheet, showLocationSearch]);
 
   // Load venues on filter changes
   useEffect(() => {
@@ -487,11 +459,10 @@ export default function WelcomePage() {
     },
   ];
 
-  const horizontalTabs: ("Umumiy" | "Restoranlar" | "To'yxonalar" | "Sevimlilar")[] = [
+  const horizontalTabs: ("Umumiy" | "Restoranlar" | "To'yxonalar")[] = [
     "Umumiy",
     "Restoranlar",
     "To'yxonalar",
-    "Sevimlilar",
   ];
 
   const displayName = user?.first_name ? `${user.first_name}` : (localStorage.getItem("fullName") || "Shahzod");
@@ -671,52 +642,6 @@ export default function WelcomePage() {
               </div>
             )}
 
-            {/* Stories Carousel */}
-            <div className="space-y-2 pt-1 animate-fade-in">
-              <div className="flex items-center justify-between px-0.5">
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  <span>Hikoyalar & Tavsiyalar</span>
-                </span>
-                <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                  Jonli
-                </span>
-              </div>
-              <div className="flex items-center gap-3 overflow-x-auto scrollbar-none pb-1 pt-1 -mx-1 px-1">
-                {(venues.length > 0 ? venues.slice(0, 6) : [
-                  { id: 1, name: "Bahor Restoran" },
-                  { id: 2, name: "Registon Zal" },
-                  { id: 3, name: "Zarafshon To'yxona" },
-                  { id: 4, name: "Yashnobod Tantana" },
-                  { id: 5, name: "Bahor Yunusobod" }
-                ]).map((v, idx) => {
-                  return (
-                    <button
-                      key={v.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveStoryIndex(idx);
-                        setStoryProgress(0);
-                      }}
-                      className="flex flex-col items-center gap-1.5 shrink-0 group cursor-pointer"
-                    >
-                      <div className="p-[2.5px] rounded-full bg-gradient-to-tr from-[#FF6B00] via-pink-500 to-amber-400 group-hover:scale-105 transition-transform shadow-md shadow-primary/10">
-                        <div className="w-14 h-14 rounded-full p-0.5 bg-[var(--background)] overflow-hidden">
-                          <img
-                            src={FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length]}
-                            alt={v.name}
-                            className="w-full h-full rounded-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          />
-                        </div>
-                      </div>
-                      <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 max-w-[62px] truncate text-center">
-                        {v.name.split(" ")[0]}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
             {/* Horizontal Tabs / Pills */}
             <div className="flex w-full gap-2.5 pb-1 overflow-x-auto scrollbar-none">
@@ -831,9 +756,7 @@ export default function WelcomePage() {
 
               {/* Venues Content */}
               {(() => {
-                const displayedVenues = activeTab === "Sevimlilar"
-                  ? venues.filter((v) => favoriteVenueIds.has(v.id))
-                  : venues;
+                const displayedVenues = venues;
 
                 if (loadingVenues) {
                   return (
@@ -855,21 +778,19 @@ export default function WelcomePage() {
                       theme === "dark" ? "border-white/10 bg-white/[0.02]" : "border-zinc-200 bg-zinc-50"
                     }`}>
                       <div className="w-12 h-12 rounded-2xl bg-[#FF6B00]/10 flex items-center justify-center text-[#FF6B00] mx-auto">
-                        {activeTab === "Sevimlilar" ? <Heart className="h-6 w-6" /> : <Search className="h-6 w-6" />}
+                        <Search className="h-6 w-6" />
                       </div>
                       <h3 className="text-sm font-bold text-foreground dark:text-white">
-                        {activeTab === "Sevimlilar" ? "Sevimli muassasalar yo'q" : "Mos keluvchi muassasa topilmadi"}
+                        Mos keluvchi muassasa topilmadi
                       </h3>
                       <p className="text-xs text-zinc-400 max-w-xs mx-auto leading-relaxed">
-                        {activeTab === "Sevimlilar"
-                          ? "Hozircha hech qanday muassasani sevimli qilib saqlamadingiz. Istalgan karta ustidagi belgi orqali saqlang."
-                          : selectedDistrictId !== null
+                        {selectedDistrictId !== null
                           ? "Tanlangan tumanda hali muassasalar mavjud emas. Barcha tumanlar bo'yicha ko'rishni xohlaysizmi?"
                           : searchQuery
                           ? `"${searchQuery}" so'rovi bo'yicha hech qanday natija topilmadi.`
                           : "Ushbu toifada hozircha muassasalar mavjud emas."}
                       </p>
-                      {(selectedDistrictId !== null || searchQuery || guestCountFilter || activeTab === "Sevimlilar") && (
+                      {(selectedDistrictId !== null || searchQuery || guestCountFilter) && (
                         <button
                           type="button"
                           onClick={() => {
@@ -1640,141 +1561,7 @@ export default function WelcomePage() {
         </div>
       )}
 
-      {/* ==================== STORIES VIEWER FULL-SCREEN MODAL ==================== */}
-      {activeStoryIndex !== null && (() => {
-        const storyVenues = venues.length > 0 ? venues.slice(0, 5) : [
-          { id: 1, name: "Bahor Restoran", tagline: "Chilonzor tumani", rating_avg: "4.9" },
-          { id: 2, name: "Registon Zal", tagline: "Mirzo Ulug'bek", rating_avg: "4.8" },
-          { id: 3, name: "Zarafshon To'yxona", tagline: "Sirg'ali tumani", rating_avg: "5.0" },
-          { id: 4, name: "Yashnobod Tantana", tagline: "Yashnobod tumani", rating_avg: "4.7" },
-          { id: 5, name: "Bahor Yunusobod", tagline: "Yunusobod tumani", rating_avg: "4.9" },
-        ];
-        const currentVenue = storyVenues[activeStoryIndex] || storyVenues[0];
-        const storyImg = FALLBACK_IMAGES[activeStoryIndex % FALLBACK_IMAGES.length];
 
-        return (
-          <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center animate-fade-in select-none">
-            {/* Background blur image */}
-            <img
-              src={storyImg}
-              alt={currentVenue.name}
-              className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40 scale-125"
-            />
-
-            {/* Mobile Story Container */}
-            <div className="relative w-full h-full max-w-md bg-black flex flex-col justify-between overflow-hidden shadow-2xl">
-              {/* Foreground Story Photo */}
-              <img
-                src={storyImg}
-                alt={currentVenue.name}
-                className="absolute inset-0 w-full h-full object-cover z-0"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/70 z-10" />
-
-              {/* Top Progress Bars & Header */}
-              <div className="relative z-20 px-4 pt-4 pb-2 space-y-3">
-                {/* Multi-segment Progress Bar */}
-                <div className="flex gap-1.5 w-full">
-                  {storyVenues.map((_, idx) => (
-                    <div key={idx} className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-white transition-all duration-100 ease-linear rounded-full"
-                        style={{
-                          width:
-                            idx < activeStoryIndex
-                              ? "100%"
-                              : idx === activeStoryIndex
-                              ? `${storyProgress}%`
-                              : "0%",
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Author Info & Close */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-full border-2 border-primary overflow-hidden shadow-md">
-                      <img
-                        src={storyImg}
-                        alt={currentVenue.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="text-left">
-                      <h4 className="text-sm font-extrabold text-white leading-tight">
-                        {currentVenue.name}
-                      </h4>
-                      <p className="text-[10px] text-white/70 font-semibold">
-                        {currentVenue.tagline || "Toshkent shahri"} • Bugun 18:30
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveStoryIndex(null)}
-                    className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/60 transition-colors cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Middle Tap Zones */}
-              <div className="relative z-20 flex-1 flex">
-                <div
-                  className="w-1/3 h-full cursor-pointer"
-                  onClick={() => {
-                    if (activeStoryIndex > 0) {
-                      setActiveStoryIndex((prev) => (prev !== null ? prev - 1 : 0));
-                      setStoryProgress(0);
-                    }
-                  }}
-                />
-                <div
-                  className="w-2/3 h-full cursor-pointer"
-                  onClick={() => {
-                    if (activeStoryIndex < storyVenues.length - 1) {
-                      setActiveStoryIndex((prev) => (prev !== null ? prev + 1 : null));
-                      setStoryProgress(0);
-                    } else {
-                      setActiveStoryIndex(null);
-                    }
-                  }}
-                />
-              </div>
-
-              {/* Bottom Card CTA */}
-              <div className="relative z-20 px-5 pb-8 pt-4 space-y-3">
-                <div className="p-4 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 text-left flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold text-primary uppercase tracking-wider block">
-                      Maxsus taklif
-                    </span>
-                    <h5 className="font-extrabold text-sm text-white">{currentVenue.name}</h5>
-                    <p className="text-xs text-zinc-300 font-medium">Ushbu maskanda bayramingizni o'tkazing</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs font-black text-amber-400">★ {currentVenue.rating_avg || "5.0"}</span>
-                  </div>
-                </div>
-
-                <Link
-                  href={`/venue/${currentVenue.id}`}
-                  onClick={() => setActiveStoryIndex(null)}
-                  className="w-full py-4 rounded-2xl bg-[#FF6B00] hover:bg-[#E05000] text-white font-extrabold text-xs tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-[#FF6B00]/30 transition-all active:scale-[0.98] cursor-pointer"
-                >
-                  <Ticket className="w-4 h-4" />
-                  <span>JOYNI BAND QILISH</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* ==================== NOTIFICATIONS DRAWER MODAL ==================== */}
       {showNotificationsModal && (

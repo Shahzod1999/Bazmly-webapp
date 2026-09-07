@@ -22,13 +22,6 @@ import {
   X,
   Loader2,
   Phone,
-  Clock,
-  Layers,
-  Wifi,
-  Car,
-  Music,
-  Sparkles,
-  Info,
   CalendarDays,
   Users,
   ChevronDown,
@@ -40,7 +33,6 @@ import {
   engagementService,
   geoService,
   VenueDetailRead,
-  VenueZoneRead,
   MenuItemListItem,
   ReviewListItem,
   ReviewAggregateRead,
@@ -85,8 +77,6 @@ export default function VenueDetailPage({ params }: Props) {
   // Real backend states
   const [venueDetail, setVenueDetail] = useState<VenueDetailRead | null>(null);
   const [loading, setLoading] = useState(true);
-  const [zones, setZones] = useState<VenueZoneRead[]>([]);
-  const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItemListItem[]>([]);
   const [activeCategory, setActiveCategory] = useState("Barchasi");
   const [activeImage, setActiveImage] = useState<string>("/images/home/top.png");
@@ -94,7 +84,6 @@ export default function VenueDetailPage({ params }: Props) {
   const [toastMessage, setToastMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
-  const [showHoursDropdown, setShowHoursDropdown] = useState(false);
 
   // Interactive party/time picker state
   const [showPartySheet, setShowPartySheet] = useState(false);
@@ -212,16 +201,14 @@ export default function VenueDetailPage({ params }: Props) {
   const loadVenueData = useCallback(async () => {
     setLoading(true);
     try {
-      const [detail, z, menu, revs, agg] = await Promise.all([
+      const [detail, menu, revs, agg] = await Promise.all([
         venueService.getVenueDetail(id),
-        venueService.getZones(id).catch(() => []),
         venueService.getMenu(id).catch(() => []),
         venueService.getReviews(id).catch(() => ({ items: [], total: 0 })),
         venueService.getReviewAggregate(id).catch(() => null),
       ]);
 
       setVenueDetail(detail);
-      setZones(z || []);
       setMenuItems(menu || []);
       setReviewsList(revs.items || []);
       setAggregate(agg);
@@ -505,21 +492,7 @@ export default function VenueDetailPage({ params }: Props) {
             </div>
           </div>
 
-          {/* Zones & Halls Skeleton */}
-          <div className="space-y-3 pt-1">
-            <div className="flex items-center justify-between">
-              <div className="h-4 w-28 rounded-md bg-zinc-200 dark:bg-zinc-800" />
-              <div className="h-4 w-20 rounded-md bg-zinc-200 dark:bg-zinc-800" />
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-10 w-24 rounded-2xl bg-primary/20" />
-              <div className="h-10 w-24 rounded-2xl bg-zinc-200 dark:bg-zinc-800" />
-              <div className="h-10 w-24 rounded-2xl bg-zinc-200 dark:bg-zinc-800" />
-            </div>
-          </div>
 
-          {/* Working Hours Skeleton */}
-          <div className="h-14 w-full rounded-2xl border border-zinc-200 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800/40" />
 
           {/* Menu Food Section Skeleton */}
           <div className="space-y-3 pt-2">
@@ -723,145 +696,7 @@ export default function VenueDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Zallar va Zonalar Section */}
-        {zones.length > 0 && (
-          <div className="space-y-3 pt-1 text-left">
-            <div className="flex items-center justify-between">
-              <h3 className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? "text-white/60" : "text-zinc-500"}`}>
-                Zallar va Zonalar
-              </h3>
-              <span className="text-[11px] text-primary font-bold">
-                {selectedZoneId ? zones.find((z) => z.id === selectedZoneId)?.name : "Barcha zonalar"}
-              </span>
-            </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
-              <button
-                type="button"
-                onClick={() => setSelectedZoneId(null)}
-                className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shrink-0 cursor-pointer border ${
-                  selectedZoneId === null
-                    ? "bg-[#FF6B00] border-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/20"
-                    : isDark
-                    ? "bg-[#393939] border-white/5 text-white/70 hover:text-white"
-                    : "bg-zinc-100 border-zinc-200 text-zinc-700 hover:text-zinc-900"
-                }`}
-              >
-                Umumiy
-              </button>
-              {zones.map((zone) => {
-                const isSelected = selectedZoneId === zone.id;
-                return (
-                  <button
-                    key={zone.id}
-                    type="button"
-                    onClick={() => setSelectedZoneId(zone.id)}
-                    className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shrink-0 cursor-pointer border flex items-center gap-1.5 ${
-                      isSelected
-                        ? "bg-[#FF6B00] border-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/20"
-                        : isDark
-                        ? "bg-[#393939] border-white/5 text-white/70 hover:text-white"
-                        : "bg-zinc-100 border-zinc-200 text-zinc-700 hover:text-zinc-900"
-                    }`}
-                  >
-                    <Layers className="h-3.5 w-3.5" />
-                    <span>{zone.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Ish tartibi / Working Hours */}
-        {venueDetail?.working_hours && venueDetail.working_hours.length > 0 && (
-          <div
-            className={`rounded-2xl border p-4 transition-all text-left ${
-              isDark ? "bg-[#393939]/60 border-white/5" : "bg-zinc-50 border-zinc-200"
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setShowHoursDropdown(!showHoursDropdown)}
-              className="w-full flex items-center justify-between cursor-pointer"
-            >
-              <div className="flex items-center gap-2.5">
-                <Clock className="h-4 w-4 text-[#FF6B00]" />
-                <div>
-                  <span className={`text-xs font-bold block ${isDark ? "text-white" : "text-zinc-900"}`}>
-                    Ish tartibi: 09:00 — 23:00
-                  </span>
-                  <span className="text-[10px] text-zinc-400">
-                    {venueDetail.is_open_now ? "🟢 Hozir ochiq" : "🔴 Hozir yopiq"} • Barcha kunlar
-                  </span>
-                </div>
-              </div>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform text-zinc-400 ${
-                  showHoursDropdown ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-
-            {showHoursDropdown && (
-              <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-white/5 space-y-1.5 text-xs animate-fade-in">
-                {venueDetail.working_hours.map((wh, idx) => {
-                  const dayNames = [
-                    "Dushanba",
-                    "Seshanba",
-                    "Chorshanba",
-                    "Payshanba",
-                    "Juma",
-                    "Shanba",
-                    "Yakshanba",
-                  ];
-                  const dName = dayNames[wh.weekday] || `Kun ${wh.weekday + 1}`;
-                  const openStr = wh.opens_at ? wh.opens_at.slice(0, 5) : "09:00";
-                  const closeStr = wh.closes_at ? wh.closes_at.slice(0, 5) : "23:00";
-                  return (
-                    <div key={idx} className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
-                      <span>{dName}</span>
-                      <span className="font-semibold text-foreground dark:text-white">
-                        {wh.is_closed ? "Dam olish" : `${openStr} - ${closeStr}`}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Qulayliklar / Amenities */}
-        <div className="space-y-2.5 text-left">
-          <h3 className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? "text-white/60" : "text-zinc-500"}`}>
-            Qulayliklar
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: "Bepul Wi-Fi", icon: Wifi },
-              { label: "Avtoturargoh", icon: Car },
-              { label: "Jonli musiqa", icon: Music },
-              { label: "VIP xonalar", icon: Sparkles },
-              { label: "Konditsioner", icon: Info },
-            ].map((amenity, idx) => {
-              const IconComp = amenity.icon;
-              return (
-                <div
-                  key={idx}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold ${
-                    isDark
-                      ? "bg-[#393939] border-white/5 text-white/80"
-                      : "bg-white border-zinc-200 text-zinc-700"
-                  }`}
-                >
-                  <IconComp className="h-3.5 w-3.5 text-[#FF6B00]" />
-                  <span>{amenity.label}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
 
         {/* Menyu Section */}
         <div className="space-y-4 pt-2 text-left">
@@ -1193,13 +1028,7 @@ export default function VenueDetailPage({ params }: Props) {
               </button>
             </div>
 
-            {/* Selected Zone notice if any */}
-            {selectedZoneId && (
-              <div className="flex items-center gap-2 p-3 rounded-2xl bg-[#FF6B00]/10 border border-[#FF6B00]/20 text-xs font-bold text-[#FF6B00]">
-                <Layers className="h-4 w-4" />
-                <span>Tanlangan zona: {zones.find((z) => z.id === selectedZoneId)?.name}</span>
-              </div>
-            )}
+
 
             <div className="space-y-3.5 text-left">
               <h3 className={`font-extrabold text-sm ${isDark ? "text-white" : "text-zinc-950"}`}>
@@ -1311,9 +1140,7 @@ export default function VenueDetailPage({ params }: Props) {
                 setShowPartySheet(false);
                 const itemsQuery = encodeURIComponent(JSON.stringify(selectedItems));
                 router.push(
-                  `/booking/${id}?total=${cartTotal}&guests=${partySize}&zone_id=${
-                    selectedZoneId || ""
-                  }&date=${selectedDay}&time=${selectedTime}&items=${itemsQuery}`
+                  `/booking/${id}?total=${cartTotal}&guests=${partySize}&date=${selectedDay}&time=${selectedTime}&items=${itemsQuery}`
                 );
               }}
               className="w-full py-4.5 bg-[#FF5A00] hover:bg-[#E05000] text-white font-extrabold text-sm rounded-[24px] shadow-lg shadow-[#FF5A00]/20 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 cursor-pointer"

@@ -43,14 +43,14 @@ interface Card {
 
 function ProgressBar({ step }: { step: number }) {
   return (
-    <div className="w-full flex items-center justify-between gap-1 py-3 select-none">
+    <div className="w-full flex items-center justify-between gap-1.5 py-3 select-none">
       {[1, 2, 3, 4, 5, 6].map((s) => {
         const isFilled = s <= step;
         return (
           <div
             key={s}
             className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-              isFilled ? "bg-[#FF6B00]" : "bg-zinc-800"
+              isFilled ? "bg-[#FF6B00]" : "bg-zinc-200 dark:bg-zinc-800"
             }`}
           />
         );
@@ -440,6 +440,7 @@ function BookingContent({ id }: { id: string }) {
     }
   };
 
+
   const venueName = venueDetail?.venue.name || "Rest One";
   const venueLocation = venueDetail?.venue.street
     ? `${venueDetail.venue.street}, ${venueDetail.venue.house_number}`
@@ -447,10 +448,11 @@ function BookingContent({ id }: { id: string }) {
   const venuePhone = venueDetail?.venue.phone || "+998 99 123 45 67";
 
   return (
-    <div className="w-full max-w-md mx-auto min-h-screen bg-[var(--background)] text-white flex flex-col relative overflow-hidden pb-12">
+    <div className="w-full max-w-md mx-auto min-h-screen bg-white dark:bg-[var(--background)] text-zinc-900 dark:text-white flex flex-col relative overflow-hidden pb-12 transition-colors duration-300">
       {/* Dynamic Header */}
-      <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 select-none shrink-0 bg-[var(--background)] z-30 sticky top-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-150 dark:border-white/5 select-none shrink-0 bg-white/80 dark:bg-[var(--background)]/80 backdrop-blur-md z-30 sticky top-0">
         <button
+          type="button"
           onClick={() => {
             if (bookingStep === "details") setBookingStep("params");
             else if (bookingStep === "checkout") setBookingStep("details");
@@ -458,25 +460,28 @@ function BookingContent({ id }: { id: string }) {
             else if (bookingStep === "qr") setBookingStep("ticket");
             else router.back();
           }}
-          className="p-2.5 rounded-xl bg-transparent text-white/80 hover:text-white transition-all active:scale-90"
+          className="w-10 h-10 rounded-full bg-zinc-100 hover:bg-zinc-200/80 dark:bg-white/10 dark:hover:bg-white/15 text-zinc-700 dark:text-white flex items-center justify-center transition-all active:scale-90 border border-zinc-200/60 dark:border-white/5 cursor-pointer shadow-xs"
+          aria-label="Orqaga"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
 
         {bookingStep === "params" ? (
-          <div className="w-1" />
+          <span className="text-sm font-extrabold text-zinc-900 dark:text-white">
+            Bron qilish
+          </span>
         ) : (
-          <h2 className="text-sm font-bold tracking-wide uppercase text-zinc-400">
+          <h2 className="text-sm font-black tracking-wider uppercase text-zinc-800 dark:text-zinc-100">
             {bookingStep === "details" && "Ma'lumotlarni Tasdiqlash"}
-            {bookingStep === "checkout" && "To'lov ma'lumotlari"}
+            {bookingStep === "checkout" && "TO'LOV MA'LUMOTLARI"}
             {bookingStep === "ticket" && "Tasdiqlandi"}
             {bookingStep === "qr" && "QR Chipta"}
           </h2>
         )}
 
-        <div className="flex items-center gap-1.5 text-xs font-extrabold text-zinc-400 select-none">
-          <MapPin className="h-4 w-4 text-zinc-500" />
-          <span>{searchParams.get("location") ? decodeURIComponent(searchParams.get("location")!) : "Toshkent"}</span>
+        <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 select-none bg-zinc-100 dark:bg-white/5 px-3.5 py-1.5 rounded-full border border-zinc-200/70 dark:border-white/5 shadow-2xs">
+          <MapPin className="h-3.5 w-3.5 text-[#FF6B00]" />
+          <span className="truncate max-w-[120px]">{searchParams.get("location") ? decodeURIComponent(searchParams.get("location")!) : "Toshkent"}</span>
         </div>
       </div>
 
@@ -494,22 +499,31 @@ function BookingContent({ id }: { id: string }) {
           <ProgressBar step={2} />
 
           {/* Necha kishi uchun */}
-          <div className="flex justify-between items-center text-left py-2">
+          <div className="flex justify-between items-center text-left py-2 px-1">
             <div>
-              <h3 className="font-extrabold text-base text-white">Necha kishi uchun</h3>
+              <h3 className="font-extrabold text-base text-zinc-900 dark:text-white tracking-tight">
+                Necha kishi uchun
+              </h3>
+              <p className="text-xs font-semibold text-zinc-400 dark:text-zinc-500">
+                Mehmonlar miqdori
+              </p>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 bg-zinc-100 dark:bg-[#2C2C2E] p-1.5 rounded-2xl border border-zinc-200/80 dark:border-white/5 shadow-2xs">
               <button
+                type="button"
                 onClick={() => setGuests((prev) => Math.max(1, prev - 1))}
-                className="w-9 h-9 rounded-full bg-[#2C2C2E] hover:bg-zinc-800 flex items-center justify-center font-bold text-white active:scale-95 transition-all text-lg"
+                className="w-10 h-10 rounded-xl bg-white dark:bg-[#393939] text-zinc-800 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-700 flex items-center justify-center font-black text-lg active:scale-95 transition-all shadow-xs border border-zinc-200/50 dark:border-white/5 cursor-pointer"
               >
                 —
               </button>
-              <span className="text-xl font-bold w-6 text-center text-white">{guests}</span>
+              <span className="text-lg font-black w-7 text-center text-zinc-900 dark:text-white select-none">
+                {guests}
+              </span>
               <button
+                type="button"
                 onClick={() => setGuests((prev) => prev + 1)}
-                className="w-9 h-9 rounded-full bg-[#2C2C2E] hover:bg-zinc-800 flex items-center justify-center font-bold text-white active:scale-95 transition-all text-lg"
+                className="w-10 h-10 rounded-xl bg-white dark:bg-[#393939] text-zinc-800 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-700 flex items-center justify-center font-black text-lg active:scale-95 transition-all shadow-xs border border-zinc-200/50 dark:border-white/5 cursor-pointer"
               >
                 +
               </button>
@@ -517,48 +531,65 @@ function BookingContent({ id }: { id: string }) {
           </div>
 
           {/* Joyni belgilash (Table Selector) */}
-          <div className="space-y-4 text-left py-2">
+          <div className="space-y-3.5 text-left py-2 px-1">
             <div className="flex justify-between items-center">
-              <h3 className="font-extrabold text-base text-white">Joyni belgilash (Stol)</h3>
+              <div>
+                <h3 className="font-extrabold text-base text-zinc-900 dark:text-white tracking-tight">
+                  Joyni belgilash (Stol)
+                </h3>
+                <p className="text-xs font-semibold text-zinc-400 dark:text-zinc-500">
+                  {selectedTable ? `Stol #${selectedTable} tanlandi` : "Ixtiyoriy stolni tanlang"}
+                </p>
+              </div>
               {loadingTables && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
             </div>
 
-            <div className="flex justify-between items-center px-1">
+            <div className="flex justify-between items-center gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-none -mx-1 px-1">
               {[1, 2, 3, 4, 5, 6, 7].map((num) => {
                 const isSelected = selectedTable === num;
-                if (isSelected) {
-                  return (
-                    <button
-                      key={num}
-                      onClick={() => setSelectedTable(num)}
-                      className="w-10 h-16 rounded-2xl bg-[#FF6B00] text-white flex flex-col items-center justify-center relative active:scale-95 transition-all"
+                return (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setSelectedTable(num)}
+                    className={`flex-1 min-w-[42px] h-[72px] rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 cursor-pointer border ${
+                      isSelected
+                        ? "bg-[#FF6B00] border-[#FF6B00] text-white shadow-lg shadow-[#FF6B00]/25 scale-105"
+                        : "bg-zinc-100 hover:bg-zinc-200/70 dark:bg-[#2C2C2E] dark:hover:bg-zinc-700 border-zinc-200/80 dark:border-white/5 text-zinc-700 dark:text-zinc-300 shadow-2xs"
+                    }`}
+                  >
+                    <span
+                      className={`text-[10px] font-black uppercase tracking-wider leading-none ${
+                        isSelected ? "text-white/90" : "text-zinc-400 dark:text-zinc-500"
+                      }`}
                     >
-                      <span className="text-[10px] font-black absolute top-1.5 leading-none">✓</span>
-                      <span className="text-2xl font-black absolute bottom-1.5 leading-none">{num}</span>
-                    </button>
-                  );
-                } else {
-                  return (
-                    <button
-                      key={num}
-                      onClick={() => setSelectedTable(num)}
-                      className="w-10 h-16 text-2xl font-bold flex items-center justify-center text-white hover:text-zinc-300 active:scale-95 transition-all"
+                      {isSelected ? "✓" : "Stol"}
+                    </span>
+                    <span
+                      className={`text-xl font-black leading-none ${
+                        isSelected ? "text-white" : "text-zinc-900 dark:text-white"
+                      }`}
                     >
                       {num}
-                    </button>
-                  );
-                }
+                    </span>
+                  </button>
+                );
               })}
             </div>
           </div>
 
           {/* Sanani belgilash */}
-          <div className="space-y-4 text-left py-2">
+          <div className="space-y-3.5 text-left py-2 px-1">
             <div>
-              <h3 className="font-extrabold text-base text-white">Sanani belgilash</h3>
+              <h3 className="font-extrabold text-base text-zinc-900 dark:text-white tracking-tight">
+                Sanani belgilash
+              </h3>
+              <p className="text-xs font-semibold text-zinc-400 dark:text-zinc-500">
+                Kerakli sanani tanlang
+              </p>
             </div>
 
-            <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+            <div className="flex gap-2.5 overflow-x-auto pb-1 pt-0.5 scrollbar-none -mx-1 px-1">
               {[
                 { day: "Dush", num: "26" },
                 { day: "Sesh", num: "27" },
@@ -571,16 +602,26 @@ function BookingContent({ id }: { id: string }) {
                 return (
                   <button
                     key={idx}
+                    type="button"
                     onClick={() => setSelectedDate(item.num)}
-                    className={`w-14 py-4 rounded-[20px] shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 ${
-                      isSelected ? "bg-[#FF6B00] text-white" : "bg-[#2C2C2E] text-zinc-400"
+                    className={`w-[58px] py-3.5 rounded-2xl shrink-0 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 cursor-pointer border ${
+                      isSelected
+                        ? "bg-[#FF6B00] border-[#FF6B00] text-white shadow-lg shadow-[#FF6B00]/25 scale-105"
+                        : "bg-zinc-100 hover:bg-zinc-200/70 dark:bg-[#2C2C2E] dark:hover:bg-zinc-700 border-zinc-200/80 dark:border-white/5 text-zinc-600 dark:text-zinc-400 shadow-2xs"
                     }`}
                   >
-                    {isSelected && <span className="text-[10px] font-black leading-none">✓</span>}
-                    <span className="text-[10px] font-bold uppercase tracking-wide opacity-90 leading-none">
-                      {item.day}
+                    <span
+                      className={`text-[10px] font-black uppercase tracking-wider leading-none ${
+                        isSelected ? "text-white/90" : "text-zinc-400 dark:text-zinc-500"
+                      }`}
+                    >
+                      {isSelected ? "✓" : item.day}
                     </span>
-                    <span className={`text-base font-black leading-none mt-0.5 ${isSelected ? "text-white" : "text-white"}`}>
+                    <span
+                      className={`text-base font-black leading-none ${
+                        isSelected ? "text-white" : "text-zinc-900 dark:text-white"
+                      }`}
+                    >
                       {item.num}
                     </span>
                   </button>
@@ -590,20 +631,28 @@ function BookingContent({ id }: { id: string }) {
           </div>
 
           {/* Vaqtni belgilash */}
-          <div className="space-y-4 text-left py-2">
+          <div className="space-y-3.5 text-left py-2 px-1">
             <div>
-              <h3 className="font-extrabold text-base text-white">Vaqtni belgilash</h3>
+              <h3 className="font-extrabold text-base text-zinc-900 dark:text-white tracking-tight">
+                Vaqtni belgilash
+              </h3>
+              <p className="text-xs font-semibold text-zinc-400 dark:text-zinc-500">
+                Tashrif buyurish vaqti
+              </p>
             </div>
 
-            <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+            <div className="flex gap-2.5 overflow-x-auto pb-1 pt-0.5 scrollbar-none -mx-1 px-1">
               {["11:00", "13:00", "18:00", "19:00", "20:00", "21:00", "22:00"].map((t) => {
                 const isSelected = selectedTime === t;
                 return (
                   <button
                     key={t}
+                    type="button"
                     onClick={() => setSelectedTime(t)}
-                    className={`px-5 py-3 rounded-2xl text-xs font-extrabold shrink-0 flex items-center gap-1.5 active:scale-95 transition-all ${
-                      isSelected ? "bg-[#FF6B00] text-white" : "bg-[#2C2C2E] text-white hover:text-zinc-300"
+                    className={`px-5 py-3 rounded-2xl text-xs font-black shrink-0 flex items-center gap-1.5 active:scale-95 transition-all duration-200 cursor-pointer border ${
+                      isSelected
+                        ? "bg-[#FF6B00] border-[#FF6B00] text-white shadow-lg shadow-[#FF6B00]/25 scale-105"
+                        : "bg-zinc-100 hover:bg-zinc-200/70 dark:bg-[#2C2C2E] dark:hover:bg-zinc-700 border-zinc-200/80 dark:border-white/5 text-zinc-800 dark:text-white shadow-2xs"
                     }`}
                   >
                     {isSelected && <span className="leading-none text-[10px]">✓</span>}
@@ -614,9 +663,10 @@ function BookingContent({ id }: { id: string }) {
             </div>
           </div>
 
-          <div className="flex-1 min-h-[40px]" />
+          <div className="flex-1 min-h-[24px]" />
 
           <button
+            type="button"
             onClick={() => guests > 0 && setBookingStep("details")}
             className="w-full py-4.5 rounded-2xl font-extrabold text-sm tracking-wide transition-all bg-[#FF6B00] hover:bg-[#E05000] text-white active:scale-[0.98] shadow-xl shadow-[#FF6B00]/25 cursor-pointer select-none shrink-0"
           >
@@ -631,35 +681,35 @@ function BookingContent({ id }: { id: string }) {
           <ProgressBar step={4} />
 
           <div className="text-left mt-2">
-            <h1 className="text-2xl font-black tracking-tight text-white">
+            <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white">
               Ma'lumotlarni to'ldiring
             </h1>
           </div>
 
           <div className="space-y-6">
             <div className="space-y-2.5 text-left">
-              <label className="block text-sm font-bold text-white tracking-wide">Ism/Familiya</label>
-              <div className="flex items-center gap-3 pb-2 border-b border-zinc-800 focus-within:border-[#FF6B00]/40 transition-colors">
+              <label className="block text-sm font-bold text-zinc-800 dark:text-white tracking-wide">Ism/Familiya</label>
+              <div className="flex items-center gap-3 pb-2 border-b border-zinc-200 dark:border-zinc-800 focus-within:border-[#FF6B00] transition-colors">
                 <span className="text-zinc-500 text-base">👤</span>
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full bg-transparent border-0 p-0 text-base font-bold text-white focus:ring-0 outline-none placeholder:text-zinc-600"
+                  className="w-full bg-transparent border-0 p-0 text-base font-bold text-zinc-900 dark:text-white focus:ring-0 outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
                   placeholder="Ism/Familiya"
                 />
               </div>
             </div>
 
             <div className="space-y-2.5 text-left">
-              <label className="block text-sm font-bold text-white tracking-wide">Telefon raqam</label>
-              <div className="flex items-center gap-3 pb-2 border-b border-zinc-800 focus-within:border-[#FF6B00]/40 transition-colors">
+              <label className="block text-sm font-bold text-zinc-800 dark:text-white tracking-wide">Telefon raqam</label>
+              <div className="flex items-center gap-3 pb-2 border-b border-zinc-200 dark:border-zinc-800 focus-within:border-[#FF6B00] transition-colors">
                 <span className="text-zinc-500 text-base">📞</span>
                 <input
                   type="text"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="w-full bg-transparent border-0 p-0 text-base font-bold text-white focus:ring-0 outline-none placeholder:text-zinc-600 font-mono"
+                  className="w-full bg-transparent border-0 p-0 text-base font-bold text-zinc-900 dark:text-white focus:ring-0 outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-mono"
                   placeholder="+998 ** *** ** **"
                 />
               </div>
@@ -667,11 +717,11 @@ function BookingContent({ id }: { id: string }) {
           </div>
 
           <div className="space-y-3 text-left">
-            <label className="block text-sm font-bold text-white tracking-wide">Ma'lumot</label>
-            <div className="rounded-[20px] bg-[#2C2C2E] p-5 text-left">
-              <p className="text-xs font-bold text-zinc-300 leading-relaxed">
+            <label className="block text-sm font-bold text-zinc-800 dark:text-white tracking-wide">Ma'lumot</label>
+            <div className="rounded-[20px] bg-zinc-100 dark:bg-[#2C2C2E] border border-zinc-200/80 dark:border-white/5 p-5 text-left shadow-2xs">
+              <p className="text-xs font-bold text-zinc-600 dark:text-zinc-300 leading-relaxed">
                 Band qilingan vaqtgacha yetib kelishingizni so'raymiz. Kechikish{" "}
-                <span className="text-white">40 daqiqadan</span> oshsa, band avtomatik bekor qilinishi mumkin.
+                <span className="text-zinc-900 dark:text-white font-extrabold">40 daqiqadan</span> oshsa, band avtomatik bekor qilinishi mumkin.
               </p>
             </div>
           </div>
@@ -689,28 +739,30 @@ function BookingContent({ id }: { id: string }) {
 
       {/* VIEW 3: To'lov Ma'lumotlari */}
       {bookingStep === "checkout" && (
-        <div className="flex-1 flex flex-col gap-6 px-6 py-4 animate-fade-in">
-          <div className="text-left mt-2">
-            <h1 className="text-2xl font-black tracking-tight text-white">To'lov ma'lumotlari</h1>
-          </div>
-
-          <div className="rounded-2xl border border-white/5 bg-[#393939] p-4.5 flex items-center justify-between">
+        <div className="flex-1 flex flex-col gap-4.5 px-5 py-4 animate-fade-in text-left">
+          {/* Payment Card Selector */}
+          <div
+            onClick={() => setShowAddCard(true)}
+            className="rounded-[26px] border border-zinc-200/80 dark:border-white/5 bg-white dark:bg-[#2C2C2E] p-4.5 flex items-center justify-between shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-none hover:border-[#FF6B00]/40 transition-all cursor-pointer group"
+          >
             <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-white/5 flex items-center justify-center">
-                <CreditCard className="h-5 w-5 text-[#FF6B00]" />
+              <div className="w-12 h-12 rounded-2xl bg-orange-500/10 dark:bg-orange-500/15 border border-[#FF6B00]/20 flex items-center justify-center text-[#FF6B00] shadow-xs group-hover:scale-105 transition-transform shrink-0">
+                <CreditCard className="h-6 w-6" />
               </div>
-              <div className="text-left">
-                <p className="text-xs font-extrabold text-white">To'lov kartasini tanlash</p>
-                <p className="text-[10px] text-zinc-500 font-mono mt-0.5">
+              <div className="space-y-0.5">
+                <p className="text-sm font-extrabold text-zinc-900 dark:text-white group-hover:text-[#FF6B00] transition-colors">
+                  To'lov kartasini tanlash
+                </p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono font-medium">
                   {cardList.find((c) => c.id === selectedCardId)?.type || "UZCARD"} ••••{" "}
                   {cardList.find((c) => c.id === selectedCardId)?.number.slice(-4) || "9988"}
                 </p>
               </div>
             </div>
 
-            <button onClick={() => setShowAddCard(true)} className="p-1 text-zinc-400 hover:text-white">
+            <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-white/5 border border-zinc-200/60 dark:border-transparent flex items-center justify-center text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-white transition-colors">
               <ChevronDown className="h-4 w-4" />
-            </button>
+            </div>
           </div>
 
           {/* Promokod field */}
@@ -719,75 +771,95 @@ function BookingContent({ id }: { id: string }) {
               setInputPromo(promoCode);
               setShowPromoModal(true);
             }}
-            className="rounded-2xl border border-white/5 bg-[#393939] p-4.5 flex items-center justify-between cursor-pointer hover:border-zinc-800 transition-colors"
+            className="rounded-[26px] border border-zinc-200/80 dark:border-white/5 bg-white dark:bg-[#2C2C2E] p-4.5 flex items-center justify-between cursor-pointer hover:border-[#FF6B00]/40 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-none group"
           >
             <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-[#FF6B00]/10 flex items-center justify-center text-[#FF6B00]">
-                <Percent className="h-4.5 w-4.5" />
+              <div className="w-12 h-12 rounded-2xl bg-orange-500/10 dark:bg-orange-500/15 border border-[#FF6B00]/20 flex items-center justify-center text-[#FF6B00] shadow-xs group-hover:scale-105 transition-transform shrink-0">
+                <Percent className="h-6 w-6" />
               </div>
-              <div className="text-left">
-                <p className="text-xs font-extrabold text-white">Promokod kiriting</p>
+              <div className="space-y-0.5">
+                <p className="text-sm font-extrabold text-zinc-900 dark:text-white group-hover:text-[#FF6B00] transition-colors">
+                  Promokod kiriting
+                </p>
                 {promoApplied ? (
-                  <p className="text-[10px] text-green-500 font-bold mt-0.5">
-                    {promoCode} (20% chegirma faol)
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                    <Sparkles className="h-3.5 w-3.5" /> {promoCode} (20% chegirma faol)
                   </p>
                 ) : (
-                  <p className="text-[10px] text-zinc-500 font-bold mt-0.5">Promokod mavjudmi?</p>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 font-medium">Promokod mavjudmi?</p>
                 )}
               </div>
             </div>
 
-            <ChevronRight className="h-4 w-4 text-zinc-500" />
+            <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-white/5 border border-zinc-200/60 dark:border-transparent flex items-center justify-center text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-white transition-colors">
+              <ChevronRight className="h-4 w-4" />
+            </div>
           </div>
 
           {/* Invoicing calculations Card */}
-          <div className="rounded-3xl border border-white/5 bg-[#393939] p-6 shadow-xl space-y-4.5 text-left">
-            <h3 className="font-extrabold text-sm text-zinc-400 uppercase tracking-widest border-b border-white/5 pb-3">
-              Hisob varag'i
-            </h3>
+          <div className="rounded-[28px] border border-zinc-200/80 dark:border-white/5 bg-white dark:bg-[#2C2C2E] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-none space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-white/5 pb-3">
+              <h3 className="font-black text-xs text-zinc-400 dark:text-zinc-400 uppercase tracking-widest">
+                HISOB VARAG'I
+              </h3>
+              <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 px-2.5 py-0.5 rounded-full">
+                Tafsilotlar
+              </span>
+            </div>
 
-            <div className="space-y-3.5 text-xs">
+            <div className="space-y-3 text-xs">
               <div className="flex justify-between items-center">
-                <span className="text-zinc-500 font-bold">Sana va vaqt:</span>
-                <span className="font-black text-white">
+                <span className="text-zinc-500 dark:text-zinc-400 font-medium">Sana va vaqt:</span>
+                <span className="font-extrabold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-white/5 px-2.5 py-1 rounded-lg border border-zinc-200/50 dark:border-white/5">
                   {selectedDate} • {selectedTime}
                 </span>
               </div>
 
               <div className="flex justify-between items-center">
-                <span className="text-zinc-500 font-bold">Xarajat:</span>
-                <span className="font-black text-white">{formatPrice(cartTotal)}</span>
+                <span className="text-zinc-500 dark:text-zinc-400 font-medium">Mehmonlar:</span>
+                <span className="font-extrabold text-zinc-900 dark:text-white">
+                  {guests} kishi ({selectedTable}-stol)
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-500 dark:text-zinc-400 font-medium">Xarajat:</span>
+                <span className="font-extrabold text-zinc-900 dark:text-white">{formatPrice(cartTotal)}</span>
               </div>
 
               {promoApplied && (
-                <div className="flex justify-between items-center text-green-500">
-                  <span className="font-bold">Chegirma (20%):</span>
-                  <span className="font-black font-mono">-{formatPrice(discountAmount)}</span>
+                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
+                  <span className="font-medium">Chegirma (20%):</span>
+                  <span className="font-extrabold">-{formatPrice(discountAmount)}</span>
                 </div>
               )}
             </div>
 
-            <div className="border-t border-white/5 pt-4 flex flex-col gap-1">
-              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
-                Jami to'lov
-              </span>
-              <div className="text-2xl font-black text-[#FF6B00] font-mono leading-none">
+            <div className="border-t border-dashed border-zinc-200 dark:border-white/10 pt-4 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">
+                  JAMI TO'LOV
+                </span>
+                <span className="text-[11px] text-zinc-400">Barcha xizmatlar bilan</span>
+              </div>
+              <div className="text-2xl sm:text-3xl font-black text-[#FF6B00] tracking-tight">
                 {formatPrice(finalTotal)}
               </div>
             </div>
           </div>
 
-          <div className="flex-1 min-h-[40px]" />
+          <div className="flex-1 min-h-[30px]" />
 
           <button
+            type="button"
             onClick={handleCompletePayment}
             disabled={loading}
-            className="w-full py-4.5 rounded-2xl bg-[#FF6B00] hover:bg-[#E05000] text-white font-extrabold text-sm tracking-wide transition-all active:scale-[0.98] shadow-xl shadow-[#FF6B00]/25 flex items-center justify-center gap-2 select-none cursor-pointer"
+            className="w-full py-4.5 rounded-2xl bg-gradient-to-r from-[#FF6B00] to-[#FF7A1A] hover:from-[#E05000] hover:to-[#FF6B00] text-white font-black text-base tracking-wide transition-all active:scale-[0.98] shadow-xl shadow-[#FF6B00]/30 flex items-center justify-center gap-2 select-none cursor-pointer disabled:opacity-50"
           >
             {loading ? (
               <>
                 <Loader2 className="animate-spin h-5 w-5 text-white" />
-                <span>To'lanmoqda va bron qilinmoqda...</span>
+                <span>To'lanmoqda va band qilinmoqda...</span>
               </>
             ) : (
               <span>To'lovni amalga oshirish</span>
@@ -801,9 +873,9 @@ function BookingContent({ id }: { id: string }) {
         <div className="flex-1 flex flex-col gap-6 px-6 py-4 animate-fade-in select-none">
           <div
             onClick={() => setBookingStep("qr")}
-            className="rounded-[32px] border border-white/5 bg-[#393939] overflow-hidden shadow-2xl relative flex flex-col cursor-pointer hover:border-zinc-800 transition-colors"
+            className="rounded-[32px] border border-zinc-200/80 dark:border-white/5 bg-white dark:bg-[#393939] overflow-hidden shadow-lg dark:shadow-2xl relative flex flex-col cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-800 transition-colors"
           >
-            <div className="relative h-44 w-full bg-zinc-900">
+            <div className="relative h-44 w-full bg-zinc-100 dark:bg-zinc-900">
               <img
                 src="/images/home/top.png"
                 alt={venueName}
@@ -814,7 +886,7 @@ function BookingContent({ id }: { id: string }) {
               <div className="absolute bottom-4 left-5 right-5 text-left">
                 <h3 className="text-lg font-black text-white leading-tight">{venueName}</h3>
 
-                <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-white/70 mt-1">
+                <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-white/80 mt-1">
                   <span>1 km uzoqda</span>
                   <span>•</span>
                   <span className="text-[#10B981]">Ochiq</span>
@@ -823,45 +895,45 @@ function BookingContent({ id }: { id: string }) {
             </div>
 
             <div className="p-5.5 space-y-4">
-              <div className="space-y-1.5 text-left border-b border-white/5 pb-3">
-                <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-bold">
-                  <Phone className="h-3 w-3 text-[#FF6B00]" />
+              <div className="space-y-1.5 text-left border-b border-zinc-100 dark:border-white/5 pb-3">
+                <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-bold">
+                  <Phone className="h-3.5 w-3.5 text-[#FF6B00]" />
                   <span>{venuePhone}</span>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-bold">
-                  <MapPin className="h-3 w-3 text-[#FF6B00]" />
+                <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-bold">
+                  <MapPin className="h-3.5 w-3.5 text-[#FF6B00]" />
                   <span className="truncate">{venueLocation}</span>
                 </div>
               </div>
 
-              <div className="space-y-3 text-[10px] text-left">
+              <div className="space-y-3 text-xs text-left">
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-500 font-bold">Holat:</span>
-                  <span className="text-green-500 font-black">Band qilish tasdiqlandi</span>
+                  <span className="text-zinc-500 font-semibold">Holat:</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">Band qilish tasdiqlandi</span>
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-500 font-bold">Chek raqami:</span>
-                  <span className="text-white font-black font-mono">
+                  <span className="text-zinc-500 font-semibold">Chek raqami:</span>
+                  <span className="text-zinc-900 dark:text-white font-extrabold font-mono">
                     {createdBooking?.ticket_code || "0789 091172"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-500 font-bold">Belgilandi:</span>
-                  <span className="text-white font-black">
+                  <span className="text-zinc-500 font-semibold">Belgilandi:</span>
+                  <span className="text-zinc-900 dark:text-white font-extrabold">
                     {selectedTime} • {selectedDate} Sana
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-500 font-bold">Stol raqami:</span>
-                  <span className="text-white font-black">{selectedTable} - stol</span>
+                  <span className="text-zinc-500 font-semibold">Stol raqami:</span>
+                  <span className="text-zinc-900 dark:text-white font-extrabold">{selectedTable} - stol</span>
                 </div>
 
                 <div className="flex justify-between items-center pt-1.5">
-                  <span className="text-zinc-500 font-bold">Jami to'langan:</span>
-                  <div className="px-3 py-1 bg-[#FF6B00] text-white font-black rounded-lg text-xs tracking-wide shadow-md shadow-[#FF6B00]/10">
+                  <span className="text-zinc-500 font-semibold">Jami to'langan:</span>
+                  <div className="px-3 py-1 bg-[#FF6B00] text-white font-black rounded-lg text-xs tracking-wide shadow-md shadow-[#FF6B00]/15">
                     {formatPrice(finalTotal)}
                   </div>
                 </div>
@@ -869,13 +941,13 @@ function BookingContent({ id }: { id: string }) {
             </div>
 
             <div className="relative h-6 w-full flex items-center justify-between">
-              <div className="w-3.5 h-6 bg-[var(--background)] rounded-r-full -ml-px border-y border-r border-white/5" />
-              <div className="flex-1 border-t-2 border-dashed border-zinc-800 mx-2" />
-              <div className="w-3.5 h-6 bg-[var(--background)] rounded-l-full -mr-px border-y border-l border-white/5" />
+              <div className="w-3.5 h-6 bg-white dark:bg-[var(--background)] rounded-r-full -ml-px border-y border-r border-zinc-200/80 dark:border-white/5" />
+              <div className="flex-1 border-t-2 border-dashed border-zinc-200 dark:border-zinc-800 mx-2" />
+              <div className="w-3.5 h-6 bg-white dark:bg-[var(--background)] rounded-l-full -mr-px border-y border-l border-zinc-200/80 dark:border-white/5" />
             </div>
 
             <div className="p-5.5 flex flex-col items-center gap-4">
-              <span className="text-xs font-mono font-black text-zinc-500 tracking-[0.2em]">
+              <span className="text-xs font-mono font-black text-zinc-400 dark:text-zinc-500 tracking-[0.2em]">
                 {(createdBooking as any)?.qr_token || createdBooking?.ticket_code || "1234 9877 6789 5432"}
               </span>
 
@@ -906,7 +978,7 @@ function BookingContent({ id }: { id: string }) {
                   router.push("/?bookingSuccess=true");
                 }, 1200);
               }}
-              className="w-full py-3.5 rounded-2xl bg-zinc-900 border border-white/5 hover:border-zinc-800 text-zinc-400 hover:text-white font-bold text-xs tracking-wide transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/5 hover:border-zinc-300 dark:hover:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white font-bold text-xs tracking-wide transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Bosh sahifaga qaytish</span>
             </button>
@@ -974,61 +1046,131 @@ function BookingContent({ id }: { id: string }) {
         </div>
       )}
 
-      {/* OVERLAY 1: Add Card bottom sheet */}
+      {/* OVERLAY 1: Add/Select Card bottom sheet */}
       {showAddCard && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end max-w-md mx-auto bg-black/60 backdrop-blur-sm transition-all duration-300">
           <div className="absolute inset-0 z-0" onClick={() => setShowAddCard(false)} />
 
-          <div className="w-full bg-[#393939] border-t border-white/5 rounded-t-[36px] px-6 pb-9 pt-4 shadow-2xl relative z-10 flex flex-col gap-6 animate-slide-up">
-            <div className="w-10 h-1.5 bg-white/10 rounded-full mx-auto" />
+          <div className="w-full bg-white dark:bg-[#2C2C2E] border-t border-zinc-200 dark:border-white/5 rounded-t-[36px] px-6 pb-9 pt-4 shadow-2xl relative z-10 flex flex-col gap-5 animate-slide-up max-h-[85vh] overflow-y-auto">
+            <div className="w-12 h-1.5 bg-zinc-200 dark:bg-white/10 rounded-full mx-auto shrink-0" />
 
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black text-white">Karta ma'lumotlari</h2>
+              <h2 className="text-lg font-black text-zinc-900 dark:text-white flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-[#FF6B00]" />
+                <span>To'lov kartasini tanlash</span>
+              </h2>
               <button
+                type="button"
                 onClick={() => setShowAddCard(false)}
-                className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-400 hover:text-white"
+                className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-white/5 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="space-y-4 text-left">
-              <div className="rounded-2xl border border-white/5 bg-zinc-900 p-4 focus-within:border-[#FF6B00]/50 transition-colors">
-                <label className="block text-[8px] font-bold text-zinc-500 uppercase tracking-widest mb-1">
-                  Karta raqami
+            {/* Saved Cards List */}
+            <div className="space-y-2.5 text-left">
+              <label className="block text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+                Mavjud kartalar
+              </label>
+              {cardList.map((card) => {
+                const isSelected = card.id === selectedCardId;
+                return (
+                  <div
+                    key={card.id}
+                    onClick={() => {
+                      setSelectedCardId(card.id);
+                      setShowAddCard(false);
+                      triggerToast("Karta tanlandi!");
+                    }}
+                    className={`rounded-2xl p-4 border flex items-center justify-between cursor-pointer transition-all ${
+                      isSelected
+                        ? "border-[#FF6B00] bg-orange-50/70 dark:bg-[#FF6B00]/15 shadow-sm"
+                        : "border-zinc-200/80 dark:border-white/5 bg-zinc-50 dark:bg-white/5 hover:border-zinc-300"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${
+                          card.type === "HUMO"
+                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
+                            : "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
+                        }`}
+                      >
+                        {card.type}
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-zinc-900 dark:text-white">
+                          •••• {card.number.slice(-4)}
+                        </p>
+                        <p className="text-[11px] text-zinc-400 font-medium">Muddati: {card.expiry}</p>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all ${
+                        isSelected
+                          ? "border-[#FF6B00] bg-[#FF6B00] text-white"
+                          : "border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800"
+                      }`}
+                    >
+                      {isSelected && <span className="text-xs font-bold leading-none">✓</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add New Card Section */}
+            <div className="space-y-3.5 text-left border-t border-zinc-150 dark:border-white/5 pt-4">
+              <label className="block text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+                Yangi karta qo'shish
+              </label>
+
+              <div className="rounded-2xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/80 p-3.5 focus-within:border-[#FF6B00] focus-within:bg-white dark:focus-within:bg-zinc-900 transition-all">
+                <label className="block text-[9px] font-extrabold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
+                  Karta raqami (UZCARD / HUMO)
                 </label>
-                <input
-                  type="text"
-                  value={inputCardNumber}
-                  onChange={handleCardChange}
-                  className="w-full bg-transparent border-0 p-0 text-sm font-bold text-white focus:ring-0 outline-none placeholder:text-zinc-700 font-mono tracking-wider"
-                  placeholder="8600 1234 5678 9012"
-                />
+                <div className="flex items-center justify-between">
+                  <input
+                    type="text"
+                    value={inputCardNumber}
+                    onChange={handleCardChange}
+                    className="w-full bg-transparent border-0 p-0 text-sm font-bold text-zinc-900 dark:text-white focus:ring-0 outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-mono tracking-wider"
+                    placeholder="8600 0000 0000 0000"
+                  />
+                  {cardType && (
+                    <span className="text-[10px] font-extrabold bg-[#FF6B00]/10 text-[#FF6B00] px-2 py-0.5 rounded-md border border-[#FF6B00]/20 shrink-0">
+                      {cardType}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-white/5 bg-zinc-900 p-4 focus-within:border-[#FF6B00]/50 transition-colors">
-                <label className="block text-[8px] font-bold text-zinc-500 uppercase tracking-widest mb-1">
+              <div className="rounded-2xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/80 p-3.5 focus-within:border-[#FF6B00] focus-within:bg-white dark:focus-within:bg-zinc-900 transition-all">
+                <label className="block text-[9px] font-extrabold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
                   Amal qilish muddati
                 </label>
                 <input
                   type="text"
                   value={inputExpiry}
                   onChange={handleExpiryChange}
-                  className="w-full bg-transparent border-0 p-0 text-sm font-bold text-white focus:ring-0 outline-none placeholder:text-zinc-700 font-mono"
+                  className="w-full bg-transparent border-0 p-0 text-sm font-bold text-zinc-900 dark:text-white focus:ring-0 outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-mono"
                   placeholder="MM/YY"
                 />
               </div>
             </div>
 
             <button
+              type="button"
               disabled={inputCardNumber.length < 19 || inputExpiry.length < 5}
               onClick={() => {
                 setShowAddCard(false);
                 setShowOTP(true);
               }}
-              className="w-full py-4.5 rounded-2xl bg-[#FF6B00] hover:bg-[#E05000] text-white font-extrabold text-sm tracking-wide transition-all active:scale-[0.98] shadow-xl shadow-[#FF6B00]/25 disabled:opacity-30 disabled:pointer-events-none"
+              className="w-full py-4 rounded-2xl bg-[#FF6B00] hover:bg-[#E05000] text-white font-extrabold text-sm tracking-wide transition-all active:scale-[0.98] shadow-xl shadow-[#FF6B00]/25 disabled:opacity-35 disabled:pointer-events-none cursor-pointer"
             >
-              Tasdiqlash
+              Yangi kartani tasdiqlash
             </button>
           </div>
         </div>
@@ -1036,13 +1178,14 @@ function BookingContent({ id }: { id: string }) {
 
       {/* OVERLAY 2: SMS Verification OTP Screen */}
       {showOTP && (
-        <div className="fixed inset-0 z-[100] flex flex-col max-w-md mx-auto bg-[var(--background)] animate-fade-in">
-          <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 select-none shrink-0 bg-[var(--background)]">
+        <div className="fixed inset-0 z-[100] flex flex-col max-w-md mx-auto bg-white dark:bg-[var(--background)] animate-fade-in">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-150 dark:border-white/5 select-none shrink-0 bg-white dark:bg-[var(--background)]">
             <div className="w-8 h-8" />
-            <h2 className="text-sm font-bold tracking-wide uppercase text-zinc-400">Tasdiqlash</h2>
+            <h2 className="text-sm font-black tracking-wider uppercase text-zinc-800 dark:text-zinc-200">Tasdiqlash</h2>
             <button
+              type="button"
               onClick={() => setShowOTP(false)}
-              className="w-8 h-8 rounded-full bg-[#393939] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white"
+              className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-white/10 border border-zinc-200/60 dark:border-white/5 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
@@ -1050,8 +1193,8 @@ function BookingContent({ id }: { id: string }) {
 
           <div className="flex-1 flex flex-col gap-6 px-6 py-8">
             <div className="text-left space-y-2">
-              <h1 className="text-2xl font-black text-white leading-tight">Tasdiqlash kodini kiriting</h1>
-              <p className="text-xs text-zinc-500 leading-normal font-bold">
+              <h1 className="text-2xl font-black text-zinc-900 dark:text-white leading-tight">Tasdiqlash kodini kiriting</h1>
+              <p className="text-xs text-zinc-500 leading-normal font-medium">
                 Kartangizni tasdiqlash uchun telefoningizga 6 xonali SMS kod yuborildi
               </p>
             </div>
@@ -1064,8 +1207,8 @@ function BookingContent({ id }: { id: string }) {
                     key={idx}
                     className={`w-10 h-12 rounded-xl border flex items-center justify-center font-mono font-black text-base transition-all ${
                       char
-                        ? "border-[#FF6B00] bg-[#FF6B00]/5 text-white scale-105"
-                        : "border-zinc-800 bg-[#393939] text-zinc-700"
+                        ? "border-[#FF6B00] bg-orange-50 dark:bg-[#FF6B00]/10 text-zinc-900 dark:text-white scale-105"
+                        : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#2C2C2E] text-zinc-400 dark:text-zinc-600"
                     }`}
                   >
                     {char || "•"}
@@ -1075,11 +1218,12 @@ function BookingContent({ id }: { id: string }) {
             </div>
 
             <button
+              type="button"
               onClick={() => {
                 setOtpCode("");
                 triggerToast("Kod qayta yuborildi!");
               }}
-              className="text-xs font-bold text-[#FF6B00] hover:underline"
+              className="text-xs font-bold text-[#FF6B00] hover:underline cursor-pointer"
             >
               Kodni qayta yuborish
             </button>
@@ -1087,9 +1231,10 @@ function BookingContent({ id }: { id: string }) {
             <div className="flex-1" />
 
             <button
+              type="button"
               onClick={handleVerifyCard}
               disabled={otpCode.length < 6 || loading}
-              className="w-full py-4.5 rounded-2xl bg-[#FF6B00] hover:bg-[#E05000] text-white font-extrabold text-sm tracking-wide transition-all active:scale-[0.98] shadow-xl shadow-[#FF6B00]/20 flex items-center justify-center gap-2"
+              className="w-full py-4.5 rounded-2xl bg-[#FF6B00] hover:bg-[#E05000] text-white font-extrabold text-sm tracking-wide transition-all active:scale-[0.98] shadow-xl shadow-[#FF6B00]/20 flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading ? (
                 <Loader2 className="animate-spin h-5 w-5 text-white" />
@@ -1099,14 +1244,15 @@ function BookingContent({ id }: { id: string }) {
             </button>
           </div>
 
-          <div className="bg-[#393939] border-t border-white/5 p-4 grid grid-cols-3 gap-2.5 select-none shrink-0">
+          <div className="bg-zinc-100 dark:bg-[#2C2C2E] border-t border-zinc-200 dark:border-white/5 p-4 grid grid-cols-3 gap-2.5 select-none shrink-0">
             {["1", "2", "3", "4", "5", "6", "7", "8", "9", "+*#", "0", "back"].map((btn) => {
               const isBack = btn === "back";
               return (
                 <button
                   key={btn}
+                  type="button"
                   onClick={() => handleKeypadPress(btn)}
-                  className="py-4 bg-[#121212]/30 hover:bg-[#121212]/50 border border-white/5 active:scale-95 transition-all text-sm font-extrabold rounded-xl flex items-center justify-center text-white"
+                  className="py-4 bg-white dark:bg-[#1C1C1E] hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-white/5 active:scale-95 transition-all text-sm font-extrabold rounded-xl flex items-center justify-center text-zinc-800 dark:text-white shadow-2xs cursor-pointer"
                 >
                   {isBack ? "⌫" : btn}
                 </button>
@@ -1121,52 +1267,60 @@ function BookingContent({ id }: { id: string }) {
         <div className="fixed inset-0 z-50 flex flex-col justify-end max-w-md mx-auto bg-black/60 backdrop-blur-sm transition-all duration-300">
           <div className="absolute inset-0 z-0" onClick={() => setShowPromoModal(false)} />
 
-          <div className="w-full bg-[#393939] border-t border-white/5 rounded-t-[36px] px-6 pb-9 pt-4 shadow-2xl relative z-10 flex flex-col gap-6 animate-slide-up">
-            <div className="w-10 h-1.5 bg-white/10 rounded-full mx-auto" />
+          <div className="w-full bg-white dark:bg-[#2C2C2E] border-t border-zinc-200 dark:border-white/5 rounded-t-[36px] px-6 pb-9 pt-4 shadow-2xl relative z-10 flex flex-col gap-5 animate-slide-up">
+            <div className="w-12 h-1.5 bg-zinc-200 dark:bg-white/10 rounded-full mx-auto shrink-0" />
 
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
+              <h2 className="text-lg font-black text-zinc-900 dark:text-white flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-[#FF6B00] animate-pulse" />
-                <span>Promokod</span>
+                <span>Promokod kiritish</span>
               </h2>
               <button
+                type="button"
                 onClick={() => setShowPromoModal(false)}
-                className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-400 hover:text-white"
+                className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-white/5 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="rounded-2xl border border-white/5 bg-zinc-900 p-4 focus-within:border-[#FF6B00]/50 transition-colors text-left">
-              <label className="block text-[8px] font-bold text-zinc-500 uppercase tracking-widest mb-1">
-                Yozish
-              </label>
-              <input
-                type="text"
-                value={inputPromo}
-                onChange={(e) => setInputPromo(e.target.value.toUpperCase())}
-                className="w-full bg-transparent border-0 p-0 text-sm font-bold text-white focus:ring-0 outline-none placeholder:text-zinc-700 tracking-wider"
-                placeholder="Yozish"
-              />
+            <div className="space-y-3.5 text-left">
+              <div className="rounded-2xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/80 p-4 focus-within:border-[#FF6B00] focus-within:bg-white dark:focus-within:bg-zinc-900 transition-all">
+                <label className="block text-[9px] font-extrabold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
+                  Promokodni kiriting
+                </label>
+                <input
+                  type="text"
+                  value={inputPromo}
+                  onChange={(e) => setInputPromo(e.target.value.toUpperCase())}
+                  className="w-full bg-transparent border-0 p-0 text-base font-black text-zinc-900 dark:text-white focus:ring-0 outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-600 tracking-wider uppercase"
+                  placeholder="Masalan: BAZMLY"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-orange-50/80 dark:bg-[#FF6B00]/10 border border-orange-200/60 dark:border-[#FF6B00]/20">
+                <div className="text-xs">
+                  <span className="text-zinc-600 dark:text-zinc-300 font-medium">Maxsus promokod: </span>
+                  <span className="font-black text-[#FF6B00]">BAZMLY</span>
+                  <span className="text-zinc-500 dark:text-zinc-400 text-[11px] block">20% umumiy chegirma</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setInputPromo("BAZMLY")}
+                  className="px-3.5 py-1.5 bg-[#FF6B00] hover:bg-[#E05000] text-white text-xs font-bold rounded-xl active:scale-95 transition-all shadow-xs cursor-pointer"
+                >
+                  Qo'llash
+                </button>
+              </div>
             </div>
 
-            <p className="text-[10px] text-zinc-500 font-bold text-left leading-normal">
-              Chegirma olish uchun{" "}
-              <span
-                className="text-[#FF6B00] font-black cursor-pointer hover:underline"
-                onClick={() => setInputPromo("BAZMLY")}
-              >
-                BAZMLY
-              </span>{" "}
-              kodini kiriting!
-            </p>
-
             <button
+              type="button"
               disabled={!inputPromo.trim()}
               onClick={handlePromoApply}
-              className="w-full py-4.5 rounded-2xl bg-[#FF6B00] hover:bg-[#E05000] text-white font-extrabold text-sm tracking-wide transition-all active:scale-[0.98] shadow-xl shadow-[#FF6B00]/25 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+              className="w-full py-4 rounded-2xl bg-[#FF6B00] hover:bg-[#E05000] text-white font-extrabold text-sm tracking-wide transition-all active:scale-[0.98] shadow-xl shadow-[#FF6B00]/25 disabled:opacity-35 disabled:pointer-events-none cursor-pointer"
             >
-              Qo'llash
+              Tasdiqlash
             </button>
           </div>
         </div>
