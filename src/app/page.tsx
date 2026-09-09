@@ -501,17 +501,6 @@ export default function WelcomePage() {
               >
                 Hayrli kun! {displayName}
               </h1>
-              {selectedDistrictName && (
-                <button
-                  type="button"
-                  onClick={() => setShowLocationSearch(true)}
-                  className="text-[11px] font-bold text-primary flex items-center gap-1 mt-0.5 hover:opacity-80 transition-opacity cursor-pointer text-left"
-                >
-                  <MapPin className="h-3 w-3 shrink-0" />
-                  <span className="truncate max-w-[200px]">{selectedDistrictName}</span>
-                  <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
-                </button>
-              )}
             </div>
 
             <div className="flex items-center gap-2">
