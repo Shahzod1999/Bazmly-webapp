@@ -25,10 +25,12 @@ import {
   Globe,
   Bell,
   Sparkles,
+  Users,
 } from "lucide-react";
 import Navbar from "@/components/navbar";
 import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/contexts/AuthContext";
+import ToyxonaFlowModal, { ToyxonaVenueData } from "@/components/toyxona-flow-modal";
 import {
   venueService,
   geoService,
@@ -59,6 +61,17 @@ export default function WelcomePage() {
   const [showBookingSuccessToast, setShowBookingSuccessToast] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const { theme, toggleTheme } = useTheme();
+
+  // Toyxona Booking Flow Modal State
+  const [showToyxonaModal, setShowToyxonaModal] = useState(false);
+  const [selectedToyxonaVenue, setSelectedToyxonaVenue] = useState<ToyxonaVenueData | null>(null);
+  const [toyxonaModalStep, setToyxonaModalStep] = useState<"detail" | "step1">("detail");
+
+  const handleOpenToyxonaBooking = (venueData?: ToyxonaVenueData, step: "detail" | "step1" = "detail") => {
+    setSelectedToyxonaVenue(venueData || null);
+    setToyxonaModalStep(step);
+    setShowToyxonaModal(true);
+  };
 
   // Notifications Modal States
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
@@ -696,7 +709,14 @@ export default function WelcomePage() {
                     theme === "dark" ? "bg-[#393939] border-white/5" : "bg-white border-zinc-100"
                   }`}
                 >
-                  {BANNERS.map((banner, index) => {
+                  {(activeTab === "To'yxonalar"
+                    ? [
+                        "/images/home/tuyxona2.png",
+                        "/images/home/tuyxona3.png",
+                        "/images/home/tuyxona1.png",
+                      ]
+                    : BANNERS
+                  ).map((banner, index) => {
                     const isActive = currentSlide === index;
                     return (
                       <img
@@ -713,7 +733,10 @@ export default function WelcomePage() {
 
                 {/* Indicator Dots */}
                 <div className="flex justify-center items-center gap-1.5 pt-3">
-                  {BANNERS.map((_, index) => {
+                  {(activeTab === "To'yxonalar"
+                    ? ["/images/home/tuyxona2.png", "/images/home/tuyxona3.png", "/images/home/tuyxona1.png"]
+                    : BANNERS
+                  ).map((_, index) => {
                     const isActive = currentSlide === index;
                     return (
                       <button
@@ -734,7 +757,7 @@ export default function WelcomePage() {
               </div>
             </div>
 
-            {/* Section: Top Restoranlar & Zallar */}
+            {/* Section: Top Restoranlar & Zallar / Top to'yxonalar */}
             <div className="space-y-4">
               <div className="flex justify-between items-center pr-1">
                 <h2
@@ -742,7 +765,7 @@ export default function WelcomePage() {
                     theme === "dark" ? "text-white" : "text-zinc-900"
                   }`}
                 >
-                  <span>Top Restoranlar & Zallar</span>
+                  <span>{activeTab === "To'yxonalar" ? "Top to'yxonalar" : "Top Restoranlar & Zallar"}</span>
                   {loadingVenues && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
                 </h2>
                 <Link
@@ -811,215 +834,430 @@ export default function WelcomePage() {
                 }
 
                 return (
-                  /* Venues List */
                   <div className="space-y-4">
                     {/* Large Featured Card (First Venue) */}
                     {(() => {
-                      const topVenue = displayedVenues[0];
-                      const isFav = favoriteVenueIds.has(topVenue.id);
-                      const isToyxona = topVenue.name.toLowerCase().includes("to'yxona") ||
-                        topVenue.name.toLowerCase().includes("zali") ||
-                      activeTab === "To'yxonalar";
-                    const bannerImg = isToyxona ? "/images/home/tuyxona1.png" : "/images/home/top.png";
+                      const isToyxona = activeTab === "To'yxonalar";
+                      const topVenue = displayedVenues[0] || {
+                        id: 1,
+                        name: "Bahor Chilonzor",
+                        rating_avg: "4.8",
+                        reviews_count: 356,
+                        status: "active",
+                        distance_m: 1000,
+                      };
+                      const bannerImg = isToyxona ? "/images/home/tuyxona2.png" : "/images/home/top.png";
+                      const venueTitle = isToyxona ? "The Royal Grand" : topVenue.name;
 
-                    return (
-                      <Link
-                        href={`/venue/${topVenue.id}`}
-                        className={`w-full border rounded-[28px] p-4 flex flex-col gap-3.5 shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all block text-left group ${
-                          theme === "dark"
-                            ? "bg-[#252525] border-white/5 hover:border-white/10"
-                            : "bg-white border-zinc-100 hover:border-zinc-200"
-                        }`}
-                      >
-                        {/* Visual Image Display */}
-                        <div className="w-full h-48 sm:h-52 rounded-2xl overflow-hidden relative">
-                          <img
-                            src={bannerImg}
-                            alt={topVenue.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
-                        </div>
+                      const toyxonaData: ToyxonaVenueData = {
+                        id: topVenue.id || 99,
+                        name: venueTitle,
+                        price: "25,000,000 so'm",
+                        capacity: "400 - 1 200 gacha odam",
+                        img: bannerImg,
+                        rating: "4.8",
+                        reviewsCount: "356 ta sharh",
+                        distance: "1 km uzoqda",
+                        address: "Navoiy, O‘zbekiston ko‘chasi 27 - uy",
+                        discount: "10% chegirma",
+                        description:
+                          "Har bir to‘y tantanasi va unutilmas bayramlaringiz uchun mo‘ljallangan muhtasham saroy. Zamonaviy akustika tizimi, hashamatli zal va yuqori darajadagi xizmat sizning unutilmas oqshomingizni kafolatlaydi.",
+                      };
 
-                        {/* Restaurant details */}
-                        <div className="space-y-2">
-                          {/* Row 1: Title & Rating */}
-                          <div className="flex items-center justify-between gap-2">
-                            <h3
-                              className={`text-[17px] sm:text-lg font-bold tracking-tight truncate ${
-                                theme === "dark" ? "text-white" : "text-zinc-900"
-                              }`}
-                            >
-                              {topVenue.name}
-                            </h3>
+                      if (isToyxona) {
+                        return (
+                          <div
+                            onClick={() => handleOpenToyxonaBooking(toyxonaData, "detail")}
+                            className={`w-full border rounded-[28px] p-4 flex flex-col gap-3.5 shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all block text-left group cursor-pointer ${
+                              theme === "dark"
+                                ? "bg-[#252525] border-white/5 hover:border-white/10"
+                                : "bg-white border-zinc-100 hover:border-zinc-200"
+                            }`}
+                          >
+                            {/* Visual Image Display */}
+                            <div className="w-full h-52 sm:h-56 rounded-2xl overflow-hidden relative">
+                              <img
+                                src={bannerImg}
+                                alt={venueTitle}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                              <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#16A34A] text-white text-xs font-bold shadow-md">
+                                <span className="w-3.5 h-3.5 rounded border border-white flex items-center justify-center text-[9px] font-black">
+                                  %
+                                </span>
+                                <span>10% chegirma</span>
+                              </div>
+                            </div>
 
-                            {/* Star Rating & Review count */}
-                            <div className="flex items-center gap-1.5 text-sm shrink-0">
-                              <Star className="h-4 w-4 fill-[#F59E0B] text-[#F59E0B]" />
-                              <span
-                                className={`font-semibold ${
-                                  theme === "dark" ? "text-white" : "text-zinc-900"
-                                }`}
-                              >
-                                {topVenue.rating_avg && Number(topVenue.rating_avg) > 0
-                                  ? Number(topVenue.rating_avg).toFixed(1)
-                                  : "4.8"}
-                              </span>
-                              <span
-                                className={`${
+                            {/* To'yxona Details */}
+                            <div className="space-y-2.5">
+                              {/* Row 1: Title & Rating */}
+                              <div className="flex items-center justify-between gap-2">
+                                <h3
+                                  className={`text-[18px] font-bold tracking-tight truncate ${
+                                    theme === "dark" ? "text-white" : "text-zinc-900"
+                                  }`}
+                                >
+                                  {venueTitle}
+                                </h3>
+
+                                <div className="flex items-center gap-1.5 text-sm shrink-0">
+                                  <Star className="h-4 w-4 fill-[#F59E0B] text-[#F59E0B]" />
+                                  <span className={`font-semibold ${theme === "dark" ? "text-white" : "text-zinc-900"}`}>
+                                    4.8
+                                  </span>
+                                  <span className={theme === "dark" ? "text-zinc-400" : "text-zinc-500"}>
+                                    (356 ta sharh)
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Row 2: Status & Capacity */}
+                              <div className="flex items-center justify-between text-sm">
+                                <div className="flex items-center gap-1.5 font-semibold text-[#16A34A] dark:text-[#22C55E]">
+                                  <span className="w-2 h-2 rounded-full bg-[#16A34A] dark:bg-[#22C55E]" />
+                                  <span>Ochiq</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                                  <Users className="w-3.5 h-3.5 text-[#FF6B00]" />
+                                  <span>400 - 1 200 gacha odam</span>
+                                </div>
+                              </div>
+
+                              {/* Row 3: Distance & Deposit */}
+                              <div className="flex items-center gap-2.5 flex-wrap">
+                                <div
+                                  className={`flex items-center gap-1.5 text-sm font-normal ${
+                                    theme === "dark" ? "text-zinc-300" : "text-zinc-600"
+                                  }`}
+                                >
+                                  <Map className="h-4 w-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                                  <span>1 km uzoqda</span>
+                                </div>
+
+                                <span className="text-zinc-300 dark:text-zinc-600 select-none">|</span>
+
+                                <div className="inline-flex items-center gap-1.5 bg-[#22C55E] text-white px-2.5 py-0.5 rounded-full text-xs font-semibold shadow-xs">
+                                  <div className="w-3.5 h-3.5 rounded-[4px] border-[1.2px] border-white flex items-center justify-center text-[9px] font-bold leading-none shrink-0">
+                                    %
+                                  </div>
+                                  <span>Depozitlik</span>
+                                </div>
+                              </div>
+
+                              {/* Row 4: Address */}
+                              <div
+                                className={`flex items-center gap-1.5 text-sm font-normal truncate ${
                                   theme === "dark" ? "text-zinc-400" : "text-zinc-500"
                                 }`}
                               >
-                                ({topVenue.reviews_count && topVenue.reviews_count > 0
-                                  ? `${topVenue.reviews_count} ta sharh`
-                                  : "356 ta sharh"})
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Row 2: Status */}
-                          <div className="flex items-center gap-1.5 text-sm font-semibold text-[#16A34A] dark:text-[#22C55E]">
-                            <span className="w-2 h-2 rounded-full bg-[#16A34A] dark:bg-[#22C55E]" />
-                            <span>
-                              {topVenue.status === "closed"
-                                ? "Yopiq"
-                                : "Ochiq"}
-                            </span>
-                          </div>
-
-                          {/* Row 3: Distance & Deposit */}
-                          <div className="flex items-center gap-2.5 flex-wrap">
-                            <div
-                              className={`flex items-center gap-1.5 text-sm font-normal ${
-                                theme === "dark" ? "text-zinc-300" : "text-zinc-600"
-                              }`}
-                            >
-                              <Map className="h-4 w-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
-                              <span>
-                                {topVenue.distance_m
-                                  ? `${(topVenue.distance_m / 1000).toFixed(0)} km uzoqda`
-                                  : "1 km uzoqda"}
-                              </span>
-                            </div>
-
-                            <span className="text-zinc-300 dark:text-zinc-600 select-none">|</span>
-
-                            <div className="inline-flex items-center gap-1.5 bg-[#22C55E] text-white px-2.5 py-0.5 rounded-full text-xs font-semibold shadow-xs">
-                              <div className="w-3.5 h-3.5 rounded-[4px] border-[1.2px] border-white flex items-center justify-center text-[9px] font-bold leading-none shrink-0">
-                                %
-                              </div>
-                              <span>Depozitlik</span>
-                            </div>
-                          </div>
-
-                          {/* Row 4: Address */}
-                          <div
-                            className={`flex items-center gap-1.5 text-sm font-normal truncate ${
-                              theme === "dark" ? "text-zinc-400" : "text-zinc-500"
-                            }`}
-                          >
-                            <MapPin className="h-4 w-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
-                            <span className="truncate">
-                              {(topVenue as any).street
-                                ? `${(topVenue as any).street}${(topVenue as any).house_number ? ' ' + (topVenue as any).house_number + ' - uy' : ''}`
-                                : "O‘zbekiston ko‘chasi 27 - uy"}
-                            </span>
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })()}
-
-                  {/* 2x2 Grid for Other Venues */}
-                  {displayedVenues.length > 1 && (
-                    <div className="grid grid-cols-2 gap-4">
-                      {(() => {
-                        const FIGMA_CARDS = [
-                          { name: "Sayqal", img: "/images/home/tuyxona1.png" },
-                          { name: "Tinchlik", img: "/images/home/tuyxona2.png" },
-                          { name: "Panorama", img: "/images/home/tuyxona3.png" },
-                          { name: "Sharqona", img: "/images/home/tuyxona4.png" },
-                        ];
-
-                        return displayedVenues.slice(1, 5).map((card, idx) => {
-                          const figmaItem = FIGMA_CARDS[idx % FIGMA_CARDS.length];
-                          const cardTitle = searchQuery ? card.name : (figmaItem?.name || card.name);
-                          const cardImg = card.cover_url || figmaItem?.img || FALLBACK_IMAGES[(idx + 1) % FALLBACK_IMAGES.length];
-
-                          return (
-                            <div
-                              key={card.id}
-                              className={`border rounded-[24px] p-3 flex flex-col gap-2.5 shadow-[0_4px_20px_rgba(0,0,0,0.04)] text-left relative group transition-all ${
-                                theme === "dark" ? "bg-[#252525] border-white/5 shadow-lg" : "bg-white border-zinc-100"
-                              }`}
-                            >
-                              {/* Image Viewport */}
-                              <div className="w-full aspect-square rounded-[18px] overflow-hidden relative">
-                                <img
-                                  src={cardImg}
-                                  alt={cardTitle}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                />
+                                <MapPin className="h-4 w-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                                <span className="truncate">Navoiy, O‘zbekiston ko‘chasi 27 - uy</span>
                               </div>
 
-                              {/* Info details */}
-                              <div className="space-y-1.5 pr-0.5">
-                                {/* Row 1: Title & Rating */}
-                                <div className="flex items-center justify-between gap-1">
-                                  <h4
-                                    className={`text-sm sm:text-[15px] font-bold tracking-tight truncate ${
-                                      theme === "dark" ? "text-white" : "text-zinc-900"
-                                    }`}
-                                  >
-                                    {cardTitle}
-                                  </h4>
-                                  <div className="flex items-center gap-1 text-xs sm:text-sm font-bold shrink-0">
-                                    <Star className="h-3.5 w-3.5 fill-[#F59E0B] text-[#F59E0B]" />
-                                    <span className={theme === "dark" ? "text-white" : "text-zinc-900"}>
-                                      {card.rating_avg && Number(card.rating_avg) > 0
-                                        ? Number(card.rating_avg).toFixed(1)
-                                        : "4.8"}
-                                    </span>
-                                  </div>
+                              {/* Row 5: Price & Band Qilish Action */}
+                              <div className="pt-2 border-t border-zinc-100 dark:border-white/5 flex items-center justify-between gap-3">
+                                <div>
+                                  <span className="text-[11px] text-zinc-400 block font-medium">Zal narxi:</span>
+                                  <span className="text-base font-extrabold text-[#FF6B00]">25,000,000 so‘m</span>
                                 </div>
-
-                                {/* Row 2: Distance & Status */}
-                                <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-normal">
-                                  <Map className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400 shrink-0" />
-                                  <span>
-                                    {card.distance_m
-                                      ? `${(card.distance_m / 1000).toFixed(0)} km`
-                                      : "2 km"}
-                                  </span>
-                                  <span className="text-zinc-300 dark:text-zinc-600 select-none">|</span>
-                                  <div className="flex items-center gap-1 text-[#16A34A] dark:text-[#22C55E] font-semibold">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] dark:bg-[#22C55E]" />
-                                    <span>{card.status === "closed" ? "Yopiq" : "Ochiq"}</span>
-                                  </div>
-                                </div>
-
-                                {/* Row 3: Address */}
-                                <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-normal truncate">
-                                  <MapPin className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
-                                  <span className="truncate">
-                                    {(card as any).street || "Umid qo‘rg‘oni"}
-                                  </span>
-                                </div>
-
-                                {/* Row 4: View Button */}
-                                <Link
-                                  href={`/venue/${card.id}`}
-                                  className="w-full py-2 text-xs font-bold rounded-full flex items-center justify-center gap-1.5 bg-[#FF6B00] hover:bg-[#E05000] text-white active:scale-95 transition-all shadow-sm shadow-[#FF6B00]/20 mt-1"
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenToyxonaBooking(toyxonaData, "step1");
+                                  }}
+                                  className="py-2.5 px-5 rounded-full bg-[#FF6B00] hover:bg-[#E05000] text-white font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-[#FF6B00]/25 cursor-pointer"
                                 >
-                                  <span>Ko'rish</span>
-                                  <ArrowRight className="h-3.5 w-3.5 stroke-[2.5] text-white" />
-                                </Link>
+                                  <span>Band qilish</span>
+                                  <ChevronRight className="w-3.5 h-3.5 stroke-[3]" />
+                                </button>
                               </div>
                             </div>
-                          );
-                        });
-                      })()}
-                    </div>
-                  )}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <Link
+                          href={`/venue/${topVenue.id}`}
+                          className={`w-full border rounded-[28px] p-4 flex flex-col gap-3.5 shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all block text-left group ${
+                            theme === "dark"
+                              ? "bg-[#252525] border-white/5 hover:border-white/10"
+                              : "bg-white border-zinc-100 hover:border-zinc-200"
+                          }`}
+                        >
+                          {/* Visual Image Display */}
+                          <div className="w-full h-48 sm:h-52 rounded-2xl overflow-hidden relative">
+                            <img
+                              src={bannerImg}
+                              alt={topVenue.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                          </div>
+
+                          {/* Restaurant details */}
+                          <div className="space-y-2">
+                            {/* Row 1: Title & Rating */}
+                            <div className="flex items-center justify-between gap-2">
+                              <h3
+                                className={`text-[17px] sm:text-lg font-bold tracking-tight truncate ${
+                                  theme === "dark" ? "text-white" : "text-zinc-900"
+                                }`}
+                              >
+                                {topVenue.name}
+                              </h3>
+
+                              {/* Star Rating & Review count */}
+                              <div className="flex items-center gap-1.5 text-sm shrink-0">
+                                <Star className="h-4 w-4 fill-[#F59E0B] text-[#F59E0B]" />
+                                <span
+                                  className={`font-semibold ${
+                                    theme === "dark" ? "text-white" : "text-zinc-900"
+                                  }`}
+                                >
+                                  {topVenue.rating_avg && Number(topVenue.rating_avg) > 0
+                                    ? Number(topVenue.rating_avg).toFixed(1)
+                                    : "4.8"}
+                                </span>
+                                <span
+                                  className={`${
+                                    theme === "dark" ? "text-zinc-400" : "text-zinc-500"
+                                  }`}
+                                >
+                                  ({topVenue.reviews_count && topVenue.reviews_count > 0
+                                    ? `${topVenue.reviews_count} ta sharh`
+                                    : "356 ta sharh"})
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Row 2: Status */}
+                            <div className="flex items-center gap-1.5 text-sm font-semibold text-[#16A34A] dark:text-[#22C55E]">
+                              <span className="w-2 h-2 rounded-full bg-[#16A34A] dark:bg-[#22C55E]" />
+                              <span>
+                                {topVenue.status === "closed"
+                                  ? "Yopiq"
+                                  : "Ochiq"}
+                              </span>
+                            </div>
+
+                            {/* Row 3: Distance & Deposit */}
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <div
+                                className={`flex items-center gap-1.5 text-sm font-normal ${
+                                  theme === "dark" ? "text-zinc-300" : "text-zinc-600"
+                                }`}
+                              >
+                                <Map className="h-4 w-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                                <span>
+                                  {topVenue.distance_m
+                                    ? `${(topVenue.distance_m / 1000).toFixed(0)} km uzoqda`
+                                    : "1 km uzoqda"}
+                                </span>
+                              </div>
+
+                              <span className="text-zinc-300 dark:text-zinc-600 select-none">|</span>
+
+                              <div className="inline-flex items-center gap-1.5 bg-[#22C55E] text-white px-2.5 py-0.5 rounded-full text-xs font-semibold shadow-xs">
+                                <div className="w-3.5 h-3.5 rounded-[4px] border-[1.2px] border-white flex items-center justify-center text-[9px] font-bold leading-none shrink-0">
+                                  %
+                                </div>
+                                <span>Depozitlik</span>
+                              </div>
+                            </div>
+
+                            {/* Row 4: Address */}
+                            <div
+                              className={`flex items-center gap-1.5 text-sm font-normal truncate ${
+                                theme === "dark" ? "text-zinc-400" : "text-zinc-500"
+                              }`}
+                            >
+                              <MapPin className="h-4 w-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                              <span className="truncate">
+                                {(topVenue as any).street
+                                  ? `${(topVenue as any).street}${(topVenue as any).house_number ? ' ' + (topVenue as any).house_number + ' - uy' : ''}`
+                                  : "O‘zbekiston ko‘chasi 27 - uy"}
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })()}
+
+                    {/* 2x2 Grid for Other Venues */}
+                    {displayedVenues.length > 1 && (
+                      <div className="grid grid-cols-2 gap-4">
+                        {(() => {
+                          const isToyxona = activeTab === "To'yxonalar";
+
+                          const FIGMA_CARDS = isToyxona
+                            ? [
+                                {
+                                  name: "Yakkasaroy To'yxonasi",
+                                  img: "/images/home/tuyxona1.png",
+                                  capacity: "300 - 800 kishi",
+                                  price: "20,000,000 so'm",
+                                },
+                                {
+                                  name: "Mumtoz Saroyi",
+                                  img: "/images/home/tuyxona2.png",
+                                  capacity: "400 - 1000 kishi",
+                                  price: "22,000,000 so'm",
+                                },
+                                {
+                                  name: "Osiyo Grand",
+                                  img: "/images/home/tuyxona3.png",
+                                  capacity: "250 - 600 kishi",
+                                  price: "18,000,000 so'm",
+                                },
+                                {
+                                  name: "Versal To'yxonasi",
+                                  img: "/images/home/tuyxona4.png",
+                                  capacity: "500 - 1200 kishi",
+                                  price: "28,000,000 so'm",
+                                },
+                              ]
+                            : [
+                                { name: "Sayqal", img: "/images/home/tuyxona1.png" },
+                                { name: "Tinchlik", img: "/images/home/tuyxona2.png" },
+                                { name: "Panorama", img: "/images/home/tuyxona3.png" },
+                                { name: "Sharqona", img: "/images/home/tuyxona4.png" },
+                              ];
+
+                          return displayedVenues.slice(1, 5).map((card, idx) => {
+                            const figmaItem = FIGMA_CARDS[idx % FIGMA_CARDS.length];
+                            const cardTitle = searchQuery ? card.name : (figmaItem?.name || card.name);
+                            const cardImg = card.cover_url || figmaItem?.img || FALLBACK_IMAGES[(idx + 1) % FALLBACK_IMAGES.length];
+
+                            const toyxonaCardData: ToyxonaVenueData = {
+                              id: card.id,
+                              name: cardTitle,
+                              price: (figmaItem as any)?.price || "20,000,000 so'm",
+                              capacity: (figmaItem as any)?.capacity || "300 - 800 kishi",
+                              img: cardImg,
+                              rating: "4.8",
+                              reviewsCount: "356 ta sharh",
+                              distance: "2 km uzoqda",
+                              address: "Umid qo‘rg‘oni",
+                              discount: "10% chegirma",
+                            };
+
+                            return (
+                              <div
+                                key={card.id}
+                                onClick={() => {
+                                  if (isToyxona) {
+                                    handleOpenToyxonaBooking(toyxonaCardData, "detail");
+                                  }
+                                }}
+                                className={`border rounded-[24px] p-3 flex flex-col gap-2.5 shadow-[0_4px_20px_rgba(0,0,0,0.04)] text-left relative group transition-all ${
+                                  isToyxona ? "cursor-pointer" : ""
+                                } ${
+                                  theme === "dark" ? "bg-[#252525] border-white/5 shadow-lg" : "bg-white border-zinc-100"
+                                }`}
+                              >
+                                {/* Image Viewport */}
+                                <div className="w-full aspect-square rounded-[18px] overflow-hidden relative">
+                                  <img
+                                    src={cardImg}
+                                    alt={cardTitle}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                </div>
+
+                                {/* Info details */}
+                                <div className="space-y-1.5 pr-0.5">
+                                  {/* Row 1: Title & Rating */}
+                                  <div className="flex items-center justify-between gap-1">
+                                    <h4
+                                      className={`text-sm sm:text-[15px] font-bold tracking-tight truncate ${
+                                        theme === "dark" ? "text-white" : "text-zinc-900"
+                                      }`}
+                                    >
+                                      {cardTitle}
+                                    </h4>
+                                    <div className="flex items-center gap-1 text-xs sm:text-sm font-bold shrink-0">
+                                      <Star className="h-3.5 w-3.5 fill-[#F59E0B] text-[#F59E0B]" />
+                                      <span className={theme === "dark" ? "text-white" : "text-zinc-900"}>
+                                        {card.rating_avg && Number(card.rating_avg) > 0
+                                          ? Number(card.rating_avg).toFixed(1)
+                                          : "4.8"}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Row 2: Distance & Status / Capacity */}
+                                  {isToyxona ? (
+                                    <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 font-normal">
+                                      <span className="text-[#FF6B00] font-semibold truncate">
+                                        {(figmaItem as any)?.capacity || "300 - 800 kishi"}
+                                      </span>
+                                      <div className="flex items-center gap-1 text-[#16A34A] dark:text-[#22C55E] font-semibold shrink-0">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] dark:bg-[#22C55E]" />
+                                        <span>Ochiq</span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-normal">
+                                      <Map className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                                      <span>
+                                        {card.distance_m
+                                          ? `${(card.distance_m / 1000).toFixed(0)} km`
+                                          : "2 km"}
+                                      </span>
+                                      <span className="text-zinc-300 dark:text-zinc-600 select-none">|</span>
+                                      <div className="flex items-center gap-1 text-[#16A34A] dark:text-[#22C55E] font-semibold">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] dark:bg-[#22C55E]" />
+                                        <span>{card.status === "closed" ? "Yopiq" : "Ochiq"}</span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Row 3: Address / Price */}
+                                  <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 font-normal truncate">
+                                    <div className="flex items-center gap-1 truncate">
+                                      <MapPin className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                                      <span className="truncate">
+                                        {(card as any).street || "Umid qo‘rg‘oni"}
+                                      </span>
+                                    </div>
+                                    {isToyxona && (
+                                      <span className="font-bold text-xs text-zinc-900 dark:text-white shrink-0 ml-1">
+                                        {(figmaItem as any)?.price || "20M so‘m"}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Row 4: Action Button */}
+                                  {isToyxona ? (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenToyxonaBooking(toyxonaCardData, "step1");
+                                      }}
+                                      className="w-full py-2 text-xs font-bold rounded-full flex items-center justify-center gap-1.5 bg-[#FF6B00] hover:bg-[#E05000] text-white active:scale-95 transition-all shadow-sm shadow-[#FF6B00]/20 mt-1 cursor-pointer"
+                                    >
+                                      <span>Band qilish</span>
+                                      <ArrowRight className="h-3.5 w-3.5 stroke-[2.5] text-white" />
+                                    </button>
+                                  ) : (
+                                    <Link
+                                      href={`/venue/${card.id}`}
+                                      className="w-full py-2 text-xs font-bold rounded-full flex items-center justify-center gap-1.5 bg-[#FF6B00] hover:bg-[#E05000] text-white active:scale-95 transition-all shadow-sm shadow-[#FF6B00]/20 mt-1"
+                                    >
+                                      <span>Ko'rish</span>
+                                      <ArrowRight className="h-3.5 w-3.5 stroke-[2.5] text-white" />
+                                    </Link>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -1654,6 +1892,19 @@ export default function WelcomePage() {
           </div>
         </div>
       )}
+
+      {/* Toyxona Booking Flow Modal */}
+      <ToyxonaFlowModal
+        isOpen={showToyxonaModal}
+        onClose={() => setShowToyxonaModal(false)}
+        venue={selectedToyxonaVenue}
+        theme={theme}
+        initialStep={toyxonaModalStep}
+        onSuccess={() => {
+          setToastMessage("To'yxona muvaffaqiyatli band qilindi!");
+          setShowBookingSuccessToast(true);
+        }}
+      />
     </div>
   );
 }
