@@ -7,6 +7,7 @@ import {
   SlidersHorizontal,
   Star,
   MapPin,
+  Map,
   Compass,
   Wallet,
   ArrowRight,
@@ -824,110 +825,104 @@ export default function WelcomePage() {
                     return (
                       <Link
                         href={`/venue/${topVenue.id}`}
-                        className={`w-full border rounded-3xl flex flex-col gap-4 shadow-lg transition-all block text-left group ${
+                        className={`w-full border rounded-[28px] p-4 flex flex-col gap-3.5 shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all block text-left group ${
                           theme === "dark"
-                            ? "bg-[#393939] border-white/5 p-5 hover:border-white/10"
-                            : "bg-white border-zinc-100 p-4 hover:border-zinc-200"
+                            ? "bg-[#252525] border-white/5 hover:border-white/10"
+                            : "bg-white border-zinc-100 hover:border-zinc-200"
                         }`}
                       >
                         {/* Visual Image Display */}
-                        <div
-                          className={`w-full h-44 rounded-2xl overflow-hidden relative border ${
-                            theme === "dark" ? "border-white/5" : "border-zinc-100"
-                          }`}
-                        >
+                        <div className="w-full h-48 sm:h-52 rounded-2xl overflow-hidden relative">
                           <img
                             src={bannerImg}
                             alt={topVenue.name}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
-                          <button
-                            type="button"
-                            onClick={(e) => handleToggleFavorite(e, topVenue.id)}
-                            className={`absolute top-3 right-3 p-2 rounded-xl backdrop-blur-md transition-colors cursor-pointer ${
-                              isFav ? "bg-red-500/90 text-white" : "bg-black/40 text-white hover:text-red-400"
-                            }`}
-                          >
-                            <Bookmark className={`h-4 w-4 ${isFav ? "fill-white" : ""}`} />
-                          </button>
                         </div>
 
                         {/* Restaurant details */}
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h3
-                                className={`text-base font-extrabold tracking-tight ${
+                        <div className="space-y-2">
+                          {/* Row 1: Title & Rating */}
+                          <div className="flex items-center justify-between gap-2">
+                            <h3
+                              className={`text-[17px] sm:text-lg font-bold tracking-tight truncate ${
+                                theme === "dark" ? "text-white" : "text-zinc-900"
+                              }`}
+                            >
+                              {topVenue.name}
+                            </h3>
+
+                            {/* Star Rating & Review count */}
+                            <div className="flex items-center gap-1.5 text-sm shrink-0">
+                              <Star className="h-4 w-4 fill-[#F59E0B] text-[#F59E0B]" />
+                              <span
+                                className={`font-semibold ${
                                   theme === "dark" ? "text-white" : "text-zinc-900"
                                 }`}
                               >
-                                {topVenue.name}
-                              </h3>
-                              <div className="flex items-center gap-1 text-xs text-green-600 font-bold pt-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                <span>{topVenue.is_open_now ? "Ochiq" : "Faol"}</span>
-                              </div>
-                            </div>
-
-                            {/* Star Rating */}
-                            <div
-                              className={`flex items-center gap-1 text-xs font-bold text-[#FFB800] border px-2.5 py-1 rounded-xl ${
-                                theme === "dark" ? "bg-white/5 border-white/5" : "bg-yellow-500/5 border-yellow-500/10"
-                              }`}
-                            >
-                              <Star className="h-3.5 w-3.5 fill-[#FFB800] text-[#FFB800]" />
-                              <span>
                                 {topVenue.rating_avg && Number(topVenue.rating_avg) > 0
-                                  ? `${topVenue.rating_avg} (${topVenue.reviews_count || 0})`
+                                  ? Number(topVenue.rating_avg).toFixed(1)
                                   : "4.8"}
                               </span>
-                            </div>
-                          </div>
-
-                          {/* Metadata Row */}
-                          <div className="flex justify-between items-center">
-                            <div
-                              className={`flex items-center gap-1.5 text-xs font-bold ${
-                                theme === "dark" ? "text-white/60" : "text-zinc-500"
-                              }`}
-                            >
-                              <Compass className="h-4 w-4 text-zinc-400 dark:text-white/40" />
-                              <span>
-                                {topVenue.distance_m
-                                  ? `${(topVenue.distance_m / 1000).toFixed(1)} km uzoqda`
-                                  : "Toshkent"}
-                              </span>
-                            </div>
-
-                            {/* Deposit / Price badge */}
-                            {topVenue.base_price ? (
-                              <span className="text-[11px] font-bold text-primary">
-                                {Number(topVenue.base_price).toLocaleString()} UZS dan
-                              </span>
-                            ) : topVenue.requires_deposit ? (
-                              <div
-                                className={`flex items-center gap-1 font-bold rounded-lg px-2.5 py-1 text-[10px] uppercase tracking-wider transition-colors ${
-                                  theme === "dark"
-                                    ? "bg-green-500/10 border border-green-500/20 text-[#10B981]"
-                                    : "bg-[#10B981] text-white shadow-sm"
+                              <span
+                                className={`${
+                                  theme === "dark" ? "text-zinc-400" : "text-zinc-500"
                                 }`}
                               >
-                                <Wallet className="h-3.5 w-3.5 shrink-0" />
-                                <span>Depozitlik</span>
-                              </div>
-                            ) : (
-                              <span className="text-[10px] font-bold text-zinc-400">Depozitsiz</span>
-                            )}
+                                ({topVenue.reviews_count && topVenue.reviews_count > 0
+                                  ? `${topVenue.reviews_count} ta sharh`
+                                  : "356 ta sharh"})
+                              </span>
+                            </div>
                           </div>
 
-                          {/* Address / Tagline */}
+                          {/* Row 2: Status */}
+                          <div className="flex items-center gap-1.5 text-sm font-semibold text-[#16A34A] dark:text-[#22C55E]">
+                            <span className="w-2 h-2 rounded-full bg-[#16A34A] dark:bg-[#22C55E]" />
+                            <span>
+                              {topVenue.status === "closed"
+                                ? "Yopiq"
+                                : "Ochiq"}
+                            </span>
+                          </div>
+
+                          {/* Row 3: Distance & Deposit */}
+                          <div className="flex items-center gap-2.5 flex-wrap">
+                            <div
+                              className={`flex items-center gap-1.5 text-sm font-normal ${
+                                theme === "dark" ? "text-zinc-300" : "text-zinc-600"
+                              }`}
+                            >
+                              <Map className="h-4 w-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                              <span>
+                                {topVenue.distance_m
+                                  ? `${(topVenue.distance_m / 1000).toFixed(0)} km uzoqda`
+                                  : "1 km uzoqda"}
+                              </span>
+                            </div>
+
+                            <span className="text-zinc-300 dark:text-zinc-600 select-none">|</span>
+
+                            <div className="inline-flex items-center gap-1.5 bg-[#22C55E] text-white px-2.5 py-0.5 rounded-full text-xs font-semibold shadow-xs">
+                              <div className="w-3.5 h-3.5 rounded-[4px] border-[1.2px] border-white flex items-center justify-center text-[9px] font-bold leading-none shrink-0">
+                                %
+                              </div>
+                              <span>Depozitlik</span>
+                            </div>
+                          </div>
+
+                          {/* Row 4: Address */}
                           <div
-                            className={`flex items-center gap-1.5 text-xs font-semibold truncate pt-0.5 ${
-                              theme === "dark" ? "text-white/50" : "text-zinc-500"
+                            className={`flex items-center gap-1.5 text-sm font-normal truncate ${
+                              theme === "dark" ? "text-zinc-400" : "text-zinc-500"
                             }`}
                           >
-                            <MapPin className="h-4 w-4 text-zinc-400 dark:text-white/30 shrink-0" />
-                            <span className="truncate">{topVenue.tagline || "Toshkent shahri"}</span>
+                            <MapPin className="h-4 w-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                            <span className="truncate">
+                              {(topVenue as any).street
+                                ? `${(topVenue as any).street}${(topVenue as any).house_number ? ' ' + (topVenue as any).house_number + ' - uy' : ''}`
+                                : "O‘zbekiston ko‘chasi 27 - uy"}
+                            </span>
                           </div>
                         </div>
                       </Link>
