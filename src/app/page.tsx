@@ -932,102 +932,92 @@ export default function WelcomePage() {
                   {/* 2x2 Grid for Other Venues */}
                   {displayedVenues.length > 1 && (
                     <div className="grid grid-cols-2 gap-4">
-                      {displayedVenues.slice(1).map((card, idx) => {
-                        const isFav = favoriteVenueIds.has(card.id);
-                        const isToyxona = card.name.toLowerCase().includes("to'yxona") ||
-                          card.name.toLowerCase().includes("zali") ||
-                          activeTab === "To'yxonalar";
-                        const img = isToyxona
-                          ? FALLBACK_IMAGES[(idx + 2) % FALLBACK_IMAGES.length]
-                          : FALLBACK_IMAGES[(idx + 1) % FALLBACK_IMAGES.length];
+                      {(() => {
+                        const FIGMA_CARDS = [
+                          { name: "Sayqal", img: "/images/home/tuyxona1.png" },
+                          { name: "Tinchlik", img: "/images/home/tuyxona2.png" },
+                          { name: "Panorama", img: "/images/home/tuyxona3.png" },
+                          { name: "Sharqona", img: "/images/home/tuyxona4.png" },
+                        ];
 
-                        return (
-                          <div
-                            key={card.id}
-                            className={`border rounded-3xl p-3 flex flex-col gap-3 shadow-md text-left relative group ${
-                              theme === "dark" ? "bg-[#393939] border-white/5 shadow-lg" : "bg-white border-zinc-100"
-                            }`}
-                          >
-                            {/* Image Viewport */}
+                        return displayedVenues.slice(1, 5).map((card, idx) => {
+                          const figmaItem = FIGMA_CARDS[idx % FIGMA_CARDS.length];
+                          const cardTitle = searchQuery ? card.name : (figmaItem?.name || card.name);
+                          const cardImg = card.cover_url || figmaItem?.img || FALLBACK_IMAGES[(idx + 1) % FALLBACK_IMAGES.length];
+
+                          return (
                             <div
-                              className={`w-full aspect-[1.1/1] rounded-2xl overflow-hidden relative border ${
-                                theme === "dark" ? "bg-zinc-800 border-white/5" : "bg-zinc-100 border-zinc-100"
+                              key={card.id}
+                              className={`border rounded-[24px] p-3 flex flex-col gap-2.5 shadow-[0_4px_20px_rgba(0,0,0,0.04)] text-left relative group transition-all ${
+                                theme === "dark" ? "bg-[#252525] border-white/5 shadow-lg" : "bg-white border-zinc-100"
                               }`}
                             >
-                              <img
-                                src={img}
-                                alt={card.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              />
-                              <button
-                                type="button"
-                                onClick={(e) => handleToggleFavorite(e, card.id)}
-                                className={`absolute top-2 right-2 p-1.5 rounded-lg backdrop-blur-md transition-colors cursor-pointer z-10 ${
-                                  isFav ? "bg-red-500/90 text-white" : "bg-black/40 text-white hover:text-red-400"
-                                }`}
-                              >
-                                <Bookmark className={`h-3.5 w-3.5 ${isFav ? "fill-white" : ""}`} />
-                              </button>
-                            </div>
-
-                            {/* Info details */}
-                            <div className="space-y-2 pr-0.5">
-                              <div className="flex items-center justify-between gap-1">
-                                <h4
-                                  className={`text-xs font-bold tracking-wide truncate ${
-                                    theme === "dark" ? "text-white" : "text-zinc-950"
-                                  }`}
-                                >
-                                  {card.name}
-                                </h4>
-                                <div className="flex items-center gap-0.5 text-[10px] font-bold text-[#FFB800] shrink-0">
-                                  <Star className="h-3 w-3 fill-[#FFB800] text-[#FFB800]" />
-                                  <span>{card.rating_avg && Number(card.rating_avg) > 0 ? card.rating_avg : "4.8"}</span>
-                                </div>
-                              </div>
-
-                              {/* Distance & Status info */}
-                              <div
-                                className={`flex items-center gap-1 text-[10px] font-bold leading-none ${
-                                  theme === "dark" ? "text-white/50" : "text-zinc-500"
-                                }`}
-                              >
-                                <Compass className="h-3 w-3 text-zinc-400 dark:text-white/30 shrink-0" />
-                                <span>{card.distance_m ? `${(card.distance_m / 1000).toFixed(1)} km` : "Toshkent"}</span>
-                                <span className="opacity-20">|</span>
-                                <span className="text-[#10B981]">{card.is_open_now ? "Ochiq" : "Faol"}</span>
-                              </div>
-
-                              {/* Address */}
-                              <div
-                                className={`flex items-center gap-1 text-[10px] font-semibold truncate leading-none ${
-                                  theme === "dark" ? "text-white/40" : "text-zinc-400"
-                                }`}
-                              >
-                                <MapPin className="h-3 w-3 text-zinc-400 dark:text-white/20 shrink-0" />
-                                <span className="truncate">{card.tagline || "Toshkent shahri"}</span>
-                              </div>
-
-                              {/* View Button */}
-                              <Link
-                                href={`/venue/${card.id}`}
-                                className={`w-full py-2 text-[10px] font-bold rounded-full flex items-center justify-center gap-1 active:scale-95 transition-all shadow-md mt-1 ${
-                                  theme === "dark"
-                                    ? "bg-white text-zinc-950 hover:bg-zinc-100"
-                                    : "bg-[#FF6B00] text-white hover:bg-[#E05000]"
-                                }`}
-                              >
-                                <span>Ko'rish</span>
-                                <ArrowRight
-                                  className={`h-3 w-3 stroke-[3] ${
-                                    theme === "dark" ? "text-zinc-950" : "text-white"
-                                  }`}
+                              {/* Image Viewport */}
+                              <div className="w-full aspect-square rounded-[18px] overflow-hidden relative">
+                                <img
+                                  src={cardImg}
+                                  alt={cardTitle}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                 />
-                              </Link>
+                              </div>
+
+                              {/* Info details */}
+                              <div className="space-y-1.5 pr-0.5">
+                                {/* Row 1: Title & Rating */}
+                                <div className="flex items-center justify-between gap-1">
+                                  <h4
+                                    className={`text-sm sm:text-[15px] font-bold tracking-tight truncate ${
+                                      theme === "dark" ? "text-white" : "text-zinc-900"
+                                    }`}
+                                  >
+                                    {cardTitle}
+                                  </h4>
+                                  <div className="flex items-center gap-1 text-xs sm:text-sm font-bold shrink-0">
+                                    <Star className="h-3.5 w-3.5 fill-[#F59E0B] text-[#F59E0B]" />
+                                    <span className={theme === "dark" ? "text-white" : "text-zinc-900"}>
+                                      {card.rating_avg && Number(card.rating_avg) > 0
+                                        ? Number(card.rating_avg).toFixed(1)
+                                        : "4.8"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Row 2: Distance & Status */}
+                                <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-normal">
+                                  <Map className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                                  <span>
+                                    {card.distance_m
+                                      ? `${(card.distance_m / 1000).toFixed(0)} km`
+                                      : "2 km"}
+                                  </span>
+                                  <span className="text-zinc-300 dark:text-zinc-600 select-none">|</span>
+                                  <div className="flex items-center gap-1 text-[#16A34A] dark:text-[#22C55E] font-semibold">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] dark:bg-[#22C55E]" />
+                                    <span>{card.status === "closed" ? "Yopiq" : "Ochiq"}</span>
+                                  </div>
+                                </div>
+
+                                {/* Row 3: Address */}
+                                <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-normal truncate">
+                                  <MapPin className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                                  <span className="truncate">
+                                    {(card as any).street || "Umid qo‘rg‘oni"}
+                                  </span>
+                                </div>
+
+                                {/* Row 4: View Button */}
+                                <Link
+                                  href={`/venue/${card.id}`}
+                                  className="w-full py-2 text-xs font-bold rounded-full flex items-center justify-center gap-1.5 bg-[#FF6B00] hover:bg-[#E05000] text-white active:scale-95 transition-all shadow-sm shadow-[#FF6B00]/20 mt-1"
+                                >
+                                  <span>Ko'rish</span>
+                                  <ArrowRight className="h-3.5 w-3.5 stroke-[2.5] text-white" />
+                                </Link>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        });
+                      })()}
                     </div>
                   )}
                   </div>
