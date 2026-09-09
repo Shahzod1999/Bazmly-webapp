@@ -560,30 +560,30 @@ export default function WelcomePage() {
             <div className="flex items-center gap-3">
               {/* Search Field */}
               <div
-                className={`flex-1 relative flex items-center rounded-2xl overflow-hidden transition-all duration-300 ${
+                className={`flex-1 h-[52px] relative flex items-center rounded-full overflow-hidden transition-all duration-300 ${
                   theme === "dark"
-                    ? "bg-[#393939] border border-white/5 focus-within:border-primary/50"
-                    : "bg-zinc-100 border border-transparent focus-within:ring-2 focus-within:ring-primary/20"
+                    ? "bg-[#252525] border border-white/5 focus-within:border-[#EA530E]/50"
+                    : "bg-[#F2F4F7] border border-transparent focus-within:ring-2 focus-within:ring-[#EA530E]/20"
                 }`}
               >
-                <span className={`pl-4 ${theme === "dark" ? "text-white/40" : "text-zinc-400"}`}>
-                  <Search className="h-5 w-5" />
+                <span className="pl-4 text-[#EA530E] flex items-center justify-center">
+                  <Search className="w-5 h-5 stroke-[2.2]" />
                 </span>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Qidirish (masalan: Bahor, Registon)"
-                  className={`w-full pl-3 pr-4 py-3.5 bg-transparent text-sm font-medium outline-none ${
+                  placeholder="Qidirish"
+                  className={`w-full pl-3 pr-4 h-full bg-transparent text-[15px] sm:text-base font-normal outline-none ${
                     theme === "dark"
-                      ? "text-white placeholder:text-white/30"
-                      : "text-zinc-800 placeholder:text-zinc-400"
+                      ? "text-white placeholder:text-zinc-500"
+                      : "text-zinc-900 placeholder:text-[#717680]"
                   }`}
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="pr-4 text-xs font-bold text-zinc-400 hover:text-zinc-600"
+                    className="pr-4 text-xs font-bold text-zinc-400 hover:text-zinc-600 cursor-pointer"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -594,11 +594,21 @@ export default function WelcomePage() {
               <button
                 type="button"
                 onClick={() => setShowPartySheet(true)}
-                className={`bg-[#FF6B00] hover:bg-[#E05000] text-white rounded-2xl shadow-lg shadow-[#FF6B00]/20 transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
-                  theme === "dark" ? "p-4" : "p-3.5"
-                } ${guestCountFilter ? "ring-2 ring-white" : ""}`}
+                className={`w-[52px] h-[52px] rounded-[18px] bg-[#EA530E] hover:bg-[#D44607] text-white shadow-sm shadow-[#EA530E]/20 transition-all active:scale-95 flex items-center justify-center cursor-pointer shrink-0 ${
+                  guestCountFilter ? "ring-2 ring-white ring-offset-1" : ""
+                }`}
+                aria-label="Filter"
               >
-                <SlidersHorizontal className="h-5 w-5" />
+                <svg
+                  className="w-6 h-6"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <line x1="4.5" y1="8.5" x2="19.5" y2="8.5" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
+                  <circle cx="9.5" cy="8.5" r="3.2" fill="white" />
+                  <line x1="4.5" y1="15.5" x2="19.5" y2="15.5" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
+                  <circle cx="14.5" cy="15.5" r="3.2" fill="white" />
+                </svg>
               </button>
             </div>
 
