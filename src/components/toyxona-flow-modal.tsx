@@ -22,6 +22,11 @@ import {
   ShieldCheck,
   ChevronRight,
   Loader2,
+  Share2,
+  Bookmark,
+  BadgePercent,
+  ArrowRight,
+  Snowflake,
 } from "lucide-react";
 
 export interface ToyxonaVenueData {
@@ -47,6 +52,15 @@ interface ToyxonaFlowModalProps {
   onSuccess?: () => void;
 }
 
+const DEFAULT_GALLERY = [
+  "/images/home/rest1.png",
+  "/images/home/rest2.png",
+  "/images/home/rest3.png",
+  "/images/home/rest4.png",
+  "/images/home/rest5.png",
+  "/images/home/rest6.png",
+];
+
 export default function ToyxonaFlowModal({
   isOpen,
   onClose,
@@ -61,18 +75,53 @@ export default function ToyxonaFlowModal({
     id: 99,
     name: "The Royal Grand",
     price: "25,000,000 so'm",
-    capacity: "400 - 1 200 gacha odam",
-    img: "/images/home/tuyxona2.png",
+    capacity: "500 - 1,200 gacha odam",
+    img: "/images/home/top.png",
     rating: "4.8",
     reviewsCount: "356 ta sharh",
     distance: "1 km uzoqda",
     address: "Navoiy, O‘zbekiston ko‘chasi 27 - uy",
     discount: "10% chegirma",
     description:
-      "Har bir to‘y tantanasi va unutilmas bayramlaringiz uchun mo‘ljallangan muhtasham saroy. Zamonaviy akustika tizimi, hashamatli interyer va yuqori darajadagi servis sizning oqshomingizni unutilmas qiladi.",
+      "Hasidona Koshona - bu sizning unutilmas tadbirlaringiz uchun mo'ljallangan hashamatli majmua. Modern klassika uslubidagi dizayn, keng va yorug' zal hamda professional xizmat ko'rsatish jamoasi sizning to'y, korporativ tadbir yoki yubileyingizni yuqori saviyada o'tkazishni ta'minlaydi.",
   };
 
   const currentVenue = venue || defaultVenue;
+
+  const [activeImage, setActiveImage] = useState<string>(
+    venue?.img && venue.img !== "/images/home/tuyxona2.png"
+      ? venue.img
+      : "/images/home/top.png"
+  );
+  const [isSaved, setIsSaved] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (venue?.img && venue.img !== "/images/home/tuyxona2.png") {
+      setActiveImage(venue.img);
+    } else {
+      setActiveImage("/images/home/top.png");
+    }
+  }, [venue]);
+
+  React.useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
+  const handleShare = () => {
+    if (typeof window !== "undefined") {
+      navigator.clipboard?.writeText(window.location.href);
+      setToastMessage("Havola buferga nusxalandi!");
+    }
+  };
+
+  const handleToggleSave = () => {
+    setIsSaved((prev) => !prev);
+    setToastMessage(!isSaved ? "Sevimlilarga saqlandi ❤️" : "Saqlanganlardan olib tashlandi");
+  };
 
   // Active Screen: "detail" | 1 | 2 | 3 | 4 | 5 | 6
   const [currentStep, setCurrentStep] = useState<"detail" | 1 | 2 | 3 | 4 | 5 | 6>(
@@ -145,153 +194,241 @@ export default function ToyxonaFlowModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-[70] flex justify-center bg-black/50 animate-fade-in">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[80] px-4 py-2 rounded-xl bg-zinc-900/90 text-white text-xs font-semibold shadow-xl flex items-center gap-2 border border-white/10 backdrop-blur-md animate-fade-in">
+          <CheckCircle className="w-4 h-4 text-[#16A34A] shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       <div
-        className={`w-full max-w-md h-full sm:h-[92vh] sm:rounded-[32px] overflow-hidden flex flex-col shadow-2xl relative transition-colors duration-300 ${
+        className={`w-full max-w-md h-full overflow-hidden flex flex-col shadow-2xl relative transition-colors duration-300 ${
           isDark ? "bg-[#1E1E1E] text-white" : "bg-white text-zinc-900"
         }`}
       >
         {/* =======================================================================
-            VIEW 0: TO'YXONA DETAIL SCREEN (Figma Screen 2)
+            VIEW 0: TO'YXONA DETAIL SCREEN (Matching 1-rasm)
            ======================================================================= */}
         {currentStep === "detail" && (
-          <div className="flex-1 flex flex-col overflow-y-auto scrollbar-none pb-24">
-            {/* Top Image Viewport with Overlay Buttons */}
-            <div className="w-full h-72 relative overflow-hidden shrink-0">
+          <div className="flex-1 flex flex-col overflow-y-auto scrollbar-none pb-8">
+            {/* Top Image Viewport with Overlay Buttons & Thumbnails */}
+            <div className="w-full h-72 sm:h-80 relative overflow-hidden shrink-0">
               <img
-                src={currentVenue.img}
+                src={activeImage}
                 alt={currentVenue.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-all duration-300"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none" />
 
               {/* Top Navigation */}
               <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
                 <button
                   onClick={onClose}
-                  className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center active:scale-95 transition-all"
+                  className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-md"
                 >
                   <ChevronLeft className="w-6 h-6 stroke-[2.5]" />
                 </button>
-                <button
-                  onClick={onClose}
-                  className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center active:scale-95 transition-all"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Discount Tag */}
-              {currentVenue.discount && (
-                <div className="absolute bottom-4 left-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#16A34A] text-white text-xs font-bold shadow-md">
-                  <span className="w-3.5 h-3.5 rounded border border-white flex items-center justify-center text-[9px] font-black">
-                    %
-                  </span>
-                  <span>{currentVenue.discount}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Venue Information Body */}
-            <div className="p-5 space-y-4">
-              {/* Row 1: Title & Rating */}
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h2 className="text-xl font-bold tracking-tight">{currentVenue.name}</h2>
-                  <div className="flex items-center gap-1.5 text-sm font-semibold text-[#16A34A] dark:text-[#22C55E] mt-1">
-                    <span className="w-2 h-2 rounded-full bg-[#16A34A] dark:bg-[#22C55E]" />
-                    <span>Ochiq</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1 text-sm font-semibold shrink-0">
-                  <Star className="h-4 w-4 fill-[#F59E0B] text-[#F59E0B]" />
-                  <span>{currentVenue.rating}</span>
-                  <span className="text-zinc-400 font-normal">({currentVenue.reviewsCount})</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleShare}
+                    className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-md"
+                  >
+                    <Share2 className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={handleToggleSave}
+                    className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-md"
+                  >
+                    <Bookmark
+                      className={`w-5 h-5 ${
+                        isSaved ? "fill-[#FF5A00] text-[#FF5A00]" : "text-white"
+                      }`}
+                    />
+                  </button>
                 </div>
               </div>
 
-              {/* Metadata: Capacity & Distance & Deposit */}
-              <div className="space-y-2 pt-1 border-t border-b border-zinc-100 dark:border-white/5 py-3">
-                <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 font-medium">
-                  <Users className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>{currentVenue.capacity}</span>
-                </div>
-
-                <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 font-medium">
-                  <Map className="w-4 h-4 text-zinc-400 shrink-0" />
-                  <span>{currentVenue.distance}</span>
-                  <span className="text-zinc-300 select-none">|</span>
-                  <div className="inline-flex items-center gap-1 bg-[#22C55E] text-white px-2 py-0.5 rounded-full text-[11px] font-bold">
-                    <span>%</span>
-                    <span>Depozitlik</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 font-normal">
-                  <MapPin className="w-4 h-4 text-zinc-400 shrink-0" />
-                  <span>{currentVenue.address}</span>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-1.5">
-                <h3 className="text-sm font-bold">Tavsif</h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  {currentVenue.description}
-                </p>
-              </div>
-
-              {/* Amenities Grid (Qulayliklar va xizmatlar) */}
-              <div className="space-y-2.5 pt-1">
-                <h3 className="text-sm font-bold">Qulayliklar va xizmatlar</h3>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {[
-                    { label: "Katta zal", icon: Users },
-                    { label: "Jonli musiqa", icon: Music },
-                    { label: "Avtoturargoh", icon: Car },
-                    { label: "Konditsioner", icon: Wind },
-                    { label: "Professional sahna", icon: Sparkles },
-                    { label: "Yuqori tezlikdagi Wi-Fi", icon: Wifi },
-                  ].map((amenity, idx) => {
-                    const Icon = amenity.icon;
+              {/* Bottom Gallery Previews (6 thumbnails) */}
+              <div className="absolute bottom-3 left-0 right-0 z-10 flex justify-center px-4">
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1 max-w-full">
+                  {DEFAULT_GALLERY.map((thumb, idx) => {
+                    const isSel = activeImage === thumb;
                     return (
-                      <div
+                      <button
                         key={idx}
-                        className={`flex items-center gap-2 p-2.5 rounded-2xl border text-xs font-semibold ${
-                          isDark
-                            ? "bg-white/[0.03] border-white/5 text-zinc-300"
-                            : "bg-zinc-50 border-zinc-100 text-zinc-700"
+                        type="button"
+                        onClick={() => setActiveImage(thumb)}
+                        className={`w-11 h-11 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer shadow-sm ${
+                          isSel
+                            ? "border-[#FF5A00] scale-105 opacity-100 ring-2 ring-[#FF5A00]/40"
+                            : "border-white/80 opacity-85 hover:opacity-100"
                         }`}
                       >
-                        <div className="w-7 h-7 rounded-xl bg-[#FF6B00]/10 text-[#FF6B00] flex items-center justify-center shrink-0">
-                          <Icon className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="truncate">{amenity.label}</span>
-                      </div>
+                        <img
+                          src={thumb}
+                          alt={`Gallery ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
                     );
                   })}
                 </div>
               </div>
             </div>
 
-            {/* Bottom Sticky Action Bar */}
-            <div
-              className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 border-t flex items-center justify-between gap-3 z-30 ${
-                isDark ? "bg-[#1E1E1E] border-white/5" : "bg-white border-zinc-100 shadow-lg"
-              }`}
-            >
-              <div>
-                <span className="text-[11px] text-zinc-400 block font-medium">Boshlang‘ich narx:</span>
-                <span className="text-base font-extrabold text-[#FF6B00]">{currentVenue.price}</span>
+            {/* Venue Information Body */}
+            <div className="p-5 space-y-4">
+              {/* Badges & Rating Row */}
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EAF8EE] border border-[#A7E9BE] text-[#16A34A] text-xs font-semibold">
+                  <BadgePercent className="w-3.5 h-3.5" />
+                  <span>{currentVenue.discount || "10% chegirma"}</span>
+                </div>
+
+                <div className="flex items-center gap-1 text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+                  <Star className="w-4 h-4 fill-[#F59E0B] text-[#F59E0B]" />
+                  <span>
+                    {currentVenue.rating} ({currentVenue.reviewsCount})
+                  </span>
+                </div>
               </div>
-              <button
-                onClick={() => setCurrentStep(1)}
-                className="flex-1 max-w-[200px] py-3.5 px-6 rounded-full bg-[#FF6B00] hover:bg-[#E05000] text-white font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-[#FF6B00]/25"
-              >
-                <span>Band qilish</span>
-                <ChevronRight className="w-4 h-4 stroke-[3]" />
-              </button>
+
+              {/* Row 2: Title & Status */}
+              <div className="flex items-center justify-between gap-2">
+                <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                  {currentVenue.name}
+                </h1>
+                <div className="flex items-center gap-1.5 text-sm font-bold text-[#16A34A] dark:text-[#22C55E]">
+                  <span className="w-2 h-2 rounded-full bg-[#16A34A] dark:bg-[#22C55E]" />
+                  <span>Ochiq</span>
+                </div>
+              </div>
+
+              {/* Row 3: Specifications */}
+              <div className="space-y-2.5 pt-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <div className="flex items-center gap-2.5">
+                  <svg
+                    className="w-4 h-4 text-zinc-500 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect width="20" height="12" x="2" y="6" rx="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <path d="M6 12h.01M18 12h.01" />
+                  </svg>
+                  <span>{currentVenue.price}</span>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <Users className="w-4 h-4 text-zinc-500 shrink-0" />
+                  <span>{currentVenue.capacity}</span>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <Map className="w-4 h-4 text-zinc-500 shrink-0" />
+                  <span>{currentVenue.distance}</span>
+                  <span className="text-zinc-300 select-none">|</span>
+                  <div className="inline-flex items-center gap-1 bg-[#16A34A] text-white px-2.5 py-0.5 rounded-lg text-xs font-bold">
+                    <span className="text-[10px] font-black">%</span>
+                    <span>Depozitlik</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <MapPin className="w-4 h-4 text-zinc-500 shrink-0" />
+                  <span>{currentVenue.address}</span>
+                </div>
+              </div>
+
+              {/* Jami narx & Band qilish Row */}
+              <div className="pt-2 pb-1 flex items-center justify-between gap-4">
+                <div>
+                  <span className="text-xs text-zinc-400 block font-normal">Jami narx</span>
+                  <span className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
+                    25,000,000
+                  </span>
+                </div>
+                <button
+                  onClick={() => setCurrentStep(1)}
+                  className="px-6 py-3.5 rounded-2xl bg-[#FF5A00] hover:bg-[#E05000] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md shadow-[#FF5A00]/25 cursor-pointer"
+                >
+                  <span>Band qilish</span>
+                  <ArrowRight className="w-4 h-4 stroke-[3]" />
+                </button>
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1.5 pt-2">
+                <h2 className="text-base font-bold text-zinc-900 dark:text-white">Tavsif</h2>
+                <p className="text-xs sm:text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                  {currentVenue.description}
+                </p>
+              </div>
+
+              {/* Amenities Grid */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                {[
+                  { label: "Keng avtoturargoh", type: "parking" },
+                  { label: "Akustik tizim", type: "audio" },
+                  { label: "Katta sahna", type: "stage" },
+                  { label: "Konditsioner", type: "ac" },
+                  { label: "Professional oshxona", type: "kitchen" },
+                  { label: "Yuqori tezlikdagi Wi-Fi", type: "wifi" },
+                ].map((item, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex items-center gap-3 p-3 rounded-2xl border ${
+                      isDark
+                        ? "bg-zinc-800/80 border-white/5 text-zinc-200"
+                        : "bg-white border-zinc-100 text-zinc-800 shadow-[0_2px_8px_rgba(0,0,0,0.03)]"
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-[#FFF4ED] dark:bg-[#FF5A00]/10 text-[#FF5A00] flex items-center justify-center shrink-0">
+                      {item.type === "parking" && <span className="font-extrabold text-sm">P</span>}
+                      {item.type === "audio" && (
+                        <svg
+                          className="w-5 h-5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                        >
+                          <path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" />
+                        </svg>
+                      )}
+                      {item.type === "stage" && (
+                        <svg
+                          className="w-5 h-5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <circle cx="8" cy="11" r="5" />
+                          <path d="M6 10h.01M10 10h.01" />
+                          <path d="M6 13c.8 1 2 1 2.8 0" />
+                          <circle cx="16" cy="13" r="5" />
+                          <path d="M14 12h.01M18 12h.01" />
+                          <path d="M14 15c.8-.8 2-.8 2.8 0" />
+                        </svg>
+                      )}
+                      {item.type === "ac" && <Snowflake className="w-5 h-5 stroke-[2.2]" />}
+                      {item.type === "kitchen" && <Utensils className="w-5 h-5 stroke-[2.2]" />}
+                      {item.type === "wifi" && <Wifi className="w-5 h-5 stroke-[2.2]" />}
+                    </div>
+                    <span className="text-xs font-semibold leading-tight">{item.label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

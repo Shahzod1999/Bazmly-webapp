@@ -33,6 +33,7 @@ export default function BottomNav() {
 
   const isHiddenRoute = 
     pathname.startsWith("/venue/") ||
+    pathname.startsWith("/toyxona") ||
     pathname.startsWith("/booking/") ||
     pathname.startsWith("/payment/") ||
     pathname.startsWith("/payment-success") ||
