@@ -9,24 +9,27 @@ import {
   Map,
   Users,
   CheckCircle,
-  Calendar,
-  Clock,
   CreditCard,
   Check,
   Sparkles,
-  Music,
-  Car,
   Wind,
   Wifi,
   Utensils,
   ShieldCheck,
-  ChevronRight,
   Loader2,
   Share2,
   Bookmark,
   BadgePercent,
   ArrowRight,
   Snowflake,
+  Apple,
+  Soup,
+  Wine,
+  Cake,
+  Pencil,
+  Lock,
+  Receipt,
+  FileText,
 } from "lucide-react";
 
 export interface ToyxonaVenueData {
@@ -130,17 +133,26 @@ export default function ToyxonaFlowModal({
 
   // Step 1: Date & Time State
   const dates = [
-    { day: "Dush", date: "26" },
-    { day: "Sesh", date: "27" },
-    { day: "Chor", date: "28" },
-    { day: "Pay", date: "29" },
-    { day: "Jum", date: "1" },
-    { day: "Shan", date: "2" },
-    { day: "Yak", date: "3" },
+    { day: "Dush", date: "26", highlight: true },
+    { day: "Sesh", date: "27", highlight: false },
+    { day: "Chor", date: "28", highlight: false },
+    { day: "Pay", date: "29", highlight: true },
+    { day: "Jum", date: "1", highlight: false },
+    { day: "Shan", date: "2", highlight: false },
+    { day: "Yak", date: "3", highlight: false },
   ];
   const [selectedDate, setSelectedDate] = useState("26");
 
-  const times = ["11:00", "11:30", "12:00", "12:30", "17:30", "18:00", "18:30", "19:00"];
+  const times = [
+    { time: "11:00", highlight: true },
+    { time: "11:30", highlight: false },
+    { time: "12:00", highlight: true },
+    { time: "12:30", highlight: false },
+    { time: "17:30", highlight: false },
+    { time: "18:00", highlight: true },
+    { time: "18:30", highlight: false },
+    { time: "19:00", highlight: false },
+  ];
   const [selectedTime, setSelectedTime] = useState("18:00");
 
   // Step 2: Guest Tiers State
@@ -154,20 +166,6 @@ export default function ToyxonaFlowModal({
 
   // Step 3: Catering / Menu State
   const [cateringMode, setCateringMode] = useState<"custom" | "ready">("ready");
-  const [menuItems, setMenuItems] = useState<{ [key: string]: boolean }>({
-    salat1: true,
-    salat2: true,
-    gazak1: true,
-    gazak2: true,
-    taom1: true,
-    taom2: true,
-    ichimlik1: true,
-    desert1: true,
-  });
-
-  const toggleMenuItem = (id: string) => {
-    setMenuItems((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
 
   // Step 5: Payment Method State
   const [paymentMethod, setPaymentMethod] = useState<"card" | "click" | "payme">("card");
@@ -194,7 +192,7 @@ export default function ToyxonaFlowModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex justify-center bg-black/50 animate-fade-in">
+    <div className="fixed inset-0 z-[70] flex justify-center bg-black/50 backdrop-blur-xs animate-fade-in">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[80] px-4 py-2 rounded-xl bg-zinc-900/90 text-white text-xs font-semibold shadow-xl flex items-center gap-2 border border-white/10 backdrop-blur-md animate-fade-in">
@@ -209,7 +207,7 @@ export default function ToyxonaFlowModal({
         }`}
       >
         {/* =======================================================================
-            VIEW 0: TO'YXONA DETAIL SCREEN (Matching 1-rasm)
+            VIEW 0: TO'YXONA DETAIL SCREEN
            ======================================================================= */}
         {currentStep === "detail" && (
           <div className="flex-1 flex flex-col overflow-y-auto scrollbar-none pb-8">
@@ -346,7 +344,7 @@ export default function ToyxonaFlowModal({
                 </div>
               </div>
 
-              {/* Jami narx & Band qilish Row */}
+              {/* Row 4: Jami narx & Band qilish Button */}
               <div className="pt-2 pb-1 flex items-center justify-between gap-4">
                 <div>
                   <span className="text-xs text-zinc-400 block font-normal">Jami narx</span>
@@ -363,7 +361,7 @@ export default function ToyxonaFlowModal({
                 </button>
               </div>
 
-              {/* Description */}
+              {/* Row 5: Tavsif */}
               <div className="space-y-1.5 pt-2">
                 <h2 className="text-base font-bold text-zinc-900 dark:text-white">Tavsif</h2>
                 <p className="text-xs sm:text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
@@ -371,7 +369,7 @@ export default function ToyxonaFlowModal({
                 </p>
               </div>
 
-              {/* Amenities Grid */}
+              {/* Row 6: Amenities Grid (6 cards) */}
               <div className="grid grid-cols-2 gap-3 pt-2">
                 {[
                   { label: "Keng avtoturargoh", type: "parking" },
@@ -434,537 +432,775 @@ export default function ToyxonaFlowModal({
         )}
 
         {/* =======================================================================
-            STEP-BY-STEP HEADER & STEPPER (For Steps 1 to 5)
+            STEP-BY-STEP HEADER & STEPPER (For Steps 1 to 6) - Figma 1:1
            ======================================================================= */}
-        {currentStep !== "detail" && currentStep !== 6 && (
-          <div className="p-4 border-b border-zinc-100 dark:border-white/5 shrink-0">
+        {currentStep !== "detail" && (
+          <div className="shrink-0 border-b border-zinc-100 dark:border-white/5 z-10 bg-inherit">
             {/* Top Navigation */}
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between px-4 pt-3.5 pb-1">
               <button
                 onClick={() => {
                   if (currentStep === 1) setCurrentStep("detail");
                   else setCurrentStep((prev) => ((prev as number) - 1) as any);
                 }}
-                className="w-9 h-9 rounded-full border border-zinc-200 dark:border-white/10 flex items-center justify-center active:scale-95"
+                className="p-1 -ml-1 text-zinc-900 dark:text-white hover:opacity-75 active:scale-95 transition-all cursor-pointer"
+                aria-label="Orqaga"
               >
-                <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
+                <ChevronLeft className="w-6 h-6 stroke-[2]" />
               </button>
-              <h3 className="font-bold text-sm tracking-tight">{currentVenue.name} to‘yxona</h3>
+              <h3 className="font-bold text-base tracking-tight text-zinc-900 dark:text-white text-center flex-1">
+                {currentVenue.name} to‘yxona
+              </h3>
               <button
                 onClick={onClose}
-                className="w-9 h-9 rounded-full border border-zinc-200 dark:border-white/10 flex items-center justify-center active:scale-95"
+                className="p-1 -mr-1 text-zinc-900 dark:text-white hover:opacity-75 active:scale-95 transition-all cursor-pointer"
+                aria-label="Yopish"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5 stroke-[2]" />
               </button>
             </div>
 
-            {/* 4-Step Stepper Progress Bar */}
-            <div className="flex items-center justify-between px-2 pt-1">
-              {[
-                { step: 1, label: "Sana & vaqt" },
-                { step: 2, label: "Mehmonlar" },
-                { step: 3, label: "Menyu" },
-                { step: 4, label: "Tasdiqlash" },
-              ].map((item, idx) => {
-                const isActive = (currentStep as number) === item.step;
-                const isPassed = (currentStep as number) > item.step;
+            {/* 4-Step Stepper Progress Bar (Figma 1:1) */}
+            <div className="px-3 pt-2 pb-2.5">
+              <div className="flex items-start justify-between">
+                {[
+                  {
+                    step: 1,
+                    line1: "To'yxonani",
+                    line2: "belgilang",
+                  },
+                  {
+                    step: 2,
+                    line1: "Kun va vaqtni",
+                    line2: "belgilang",
+                  },
+                  {
+                    step: 3,
+                    line1: "Mehmonlar",
+                    line2: "soni",
+                  },
+                  {
+                    step: 4,
+                    line1: "Chek va",
+                    line2: "to'lov",
+                  },
+                ].map((item, idx) => {
+                  const stepNumber = idx + 1;
 
-                return (
-                  <React.Fragment key={item.step}>
-                    <div className="flex flex-col items-center gap-1">
-                      <div
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                          isActive
-                            ? "bg-[#FF6B00] text-white ring-4 ring-[#FF6B00]/20"
-                            : isPassed
-                            ? "bg-[#16A34A] text-white"
-                            : isDark
-                            ? "bg-white/10 text-zinc-400"
-                            : "bg-zinc-100 text-zinc-500"
-                        }`}
-                      >
-                        {isPassed ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : item.step}
+                  // Step 1: always completed (venue chosen)
+                  // Step 2: completed when past step 1 (currentStep > 1)
+                  // Step 3: completed when past step 3 (currentStep >= 4)
+                  // Step 4: completed on final receipt (currentStep >= 6)
+                  const isCompleted =
+                    stepNumber === 1 ||
+                    (stepNumber === 2 && (currentStep as number) > 1) ||
+                    (stepNumber === 3 && (currentStep as number) >= 4) ||
+                    (stepNumber === 4 && (currentStep as number) >= 6);
+
+                  // Is current step active?
+                  const isActive =
+                    (stepNumber === 2 && currentStep === 1) ||
+                    (stepNumber === 3 && (currentStep === 2 || currentStep === 3)) ||
+                    (stepNumber === 4 && (currentStep === 4 || currentStep === 5));
+
+                  return (
+                    <React.Fragment key={idx}>
+                      <div className="flex flex-col items-center flex-1 max-w-[84px]">
+                        {/* Circle */}
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                            isCompleted || isActive
+                              ? "bg-[#FF5A00] text-white"
+                              : isDark
+                              ? "bg-zinc-800 text-zinc-400"
+                              : "bg-zinc-200 text-zinc-500"
+                          }`}
+                        >
+                          {isCompleted ? (
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          ) : (
+                            stepNumber
+                          )}
+                        </div>
+
+                        {/* 2-line Label (ALWAYS visible in Figma) */}
+                        <div className="text-center mt-1 min-h-[26px]">
+                          <span
+                            className={`block text-[10px] leading-tight ${
+                              isActive || isCompleted
+                                ? "font-semibold text-zinc-900 dark:text-white"
+                                : "text-zinc-400 dark:text-zinc-500 font-medium"
+                            }`}
+                          >
+                            {item.line1}
+                          </span>
+                          <span
+                            className={`block text-[10px] leading-tight ${
+                              isActive || isCompleted
+                                ? "font-semibold text-zinc-900 dark:text-white"
+                                : "text-zinc-400 dark:text-zinc-500 font-medium"
+                            }`}
+                          >
+                            {item.line2}
+                          </span>
+                        </div>
                       </div>
-                      <span
-                        className={`text-[10px] font-medium hidden sm:block ${
-                          isActive ? "text-[#FF6B00] font-bold" : "text-zinc-400"
-                        }`}
-                      >
-                        {item.label}
-                      </span>
-                    </div>
 
-                    {idx < 3 && (
-                      <div
-                        className={`flex-1 h-0.5 mx-1.5 rounded-full transition-colors ${
-                          (currentStep as number) > item.step ? "bg-[#16A34A]" : "bg-zinc-200 dark:bg-white/10"
-                        }`}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
+                      {/* Connecting Line between steps */}
+                      {idx < 3 && (
+                        <div
+                          className={`flex-1 h-[2px] mt-3 mx-1 transition-colors ${
+                            idx === 0 || // between 1 and 2 is always orange
+                            (idx === 1 && (currentStep as number) >= 2) || // between 2 and 3
+                            (idx === 2 && (currentStep as number) >= 4) // between 3 and 4
+                              ? "bg-[#FF5A00]"
+                              : isDark
+                              ? "bg-zinc-800"
+                              : "bg-zinc-200"
+                          }`}
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
 
         {/* =======================================================================
-            VIEW 1: STEP 1 - SANANI VA VAQTNI BELGILASH (Figma Screen 3)
+            VIEW 1: STEP 1 - SANANI VA VAQTNI BELGILASH (Figma Step 1)
            ======================================================================= */}
         {currentStep === 1 && (
-          <div className="flex-1 flex flex-col overflow-y-auto p-5 space-y-6 pb-24">
-            {/* Sanani belgilash */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-bold">
-                <Calendar className="w-4 h-4 text-[#FF6B00]" />
-                <span>Sanani belgilash</span>
+          <div className="flex-1 flex flex-col h-full overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-6 scrollbar-none">
+              {/* Sanani belgilash */}
+              <div className="space-y-3">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white">
+                  Sanani belgilash
+                </h3>
+
+                <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+                  {dates.map((item, idx) => {
+                    const isSelected = selectedDate === item.date;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSelectedDate(isSelected ? "" : item.date)}
+                        className={`w-[54px] sm:w-[58px] h-[82px] rounded-[18px] flex flex-col items-center justify-center shrink-0 transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-[#FF5A00] text-white shadow-md shadow-[#FF5A00]/25"
+                            : isDark
+                            ? "bg-[#2A2A2A] text-zinc-300 hover:bg-[#333333]"
+                            : "bg-[#F5F5F7] text-zinc-800 hover:bg-[#EBECEF]"
+                        }`}
+                      >
+                        {isSelected ? (
+                          <Check className="w-3.5 h-3.5 stroke-[3] text-white mb-0.5" />
+                        ) : (
+                          <div className="w-3.5 h-3.5 mb-0.5" />
+                        )}
+                        <span
+                          className={`text-[11px] font-medium leading-none mb-1.5 ${
+                            isSelected
+                              ? "text-white"
+                              : item.highlight
+                              ? "text-[#FF5A00] font-semibold"
+                              : "text-zinc-400 dark:text-zinc-500"
+                          }`}
+                        >
+                          {item.day}
+                        </span>
+                        <span
+                          className={`text-xl font-bold leading-none ${
+                            isSelected
+                              ? "text-white"
+                              : item.highlight
+                              ? "text-[#FF5A00]"
+                              : "text-zinc-900 dark:text-zinc-200"
+                          }`}
+                        >
+                          {item.date}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none">
-                {dates.map((item, idx) => {
-                  const isSelected = selectedDate === item.date;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedDate(item.date)}
-                      className={`min-w-[62px] py-3 px-2 rounded-2xl flex flex-col items-center gap-1 border transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-[#FF6B00] border-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/25"
-                          : isDark
-                          ? "bg-[#252525] border-white/5 text-zinc-300 hover:border-white/20"
-                          : "bg-zinc-50 border-zinc-200 text-zinc-700 hover:border-zinc-300"
-                      }`}
-                    >
-                      <span className="text-[11px] font-medium opacity-80">{item.day}</span>
-                      <span className="text-lg font-bold">{item.date}</span>
-                    </button>
-                  );
-                })}
+              {/* Vaqtni belgilash */}
+              <div className="space-y-3 pt-1">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white">
+                  Vaqtni belgilash
+                </h3>
+
+                <div className="grid grid-cols-4 gap-2.5">
+                  {times.map((t, idx) => {
+                    const isSelected = selectedTime === t.time;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSelectedTime(isSelected ? "" : t.time)}
+                        className={`py-2.5 px-2 rounded-full flex items-center justify-center gap-1 transition-all text-xs font-semibold cursor-pointer ${
+                          isSelected
+                            ? "bg-[#FF5A00] text-white font-bold shadow-md shadow-[#FF5A00]/25"
+                            : isDark
+                            ? "bg-[#2A2A2A] hover:bg-[#333333]"
+                            : "bg-[#F5F5F7] hover:bg-[#EBECEF]"
+                        }`}
+                      >
+                        {isSelected && (
+                          <Check className="w-3 h-3 stroke-[3] text-white shrink-0" />
+                        )}
+                        <span
+                          className={
+                            isSelected
+                              ? "text-white"
+                              : t.highlight
+                              ? "text-[#FF5A00] font-bold"
+                              : "text-zinc-700 dark:text-zinc-300"
+                          }
+                        >
+                          {t.time}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* Vaqtni belgilash */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-bold">
-                <Clock className="w-4 h-4 text-[#FF6B00]" />
-                <span>Vaqtni belgilash</span>
-              </div>
-
-              <div className="grid grid-cols-4 gap-2.5">
-                {times.map((t, idx) => {
-                  const isSelected = selectedTime === t;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedTime(t)}
-                      className={`py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-[#FF6B00] border-[#FF6B00] text-white shadow-sm"
-                          : isDark
-                          ? "bg-[#252525] border-white/5 text-zinc-300 hover:border-white/20"
-                          : "bg-zinc-50 border-zinc-200 text-zinc-700 hover:border-zinc-300"
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Bottom Button */}
+            {/* Bottom Button Bar */}
             <div
-              className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 border-t ${
+              className={`p-4 border-t shrink-0 z-20 ${
                 isDark ? "bg-[#1E1E1E] border-white/5" : "bg-white border-zinc-100"
               }`}
             >
               <button
-                onClick={() => setCurrentStep(2)}
-                className="w-full py-3.5 rounded-full bg-[#FF6B00] hover:bg-[#E05000] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md shadow-[#FF6B00]/25"
+                disabled={!selectedDate || !selectedTime}
+                onClick={() => {
+                  if (selectedDate && selectedTime) setCurrentStep(2);
+                }}
+                className={`w-full py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-base text-center transition-all ${
+                  selectedDate && selectedTime
+                    ? "bg-[#FF5A00] hover:bg-[#E05000] text-white shadow-lg shadow-[#FF5A00]/25 active:scale-[0.99] cursor-pointer"
+                    : isDark
+                    ? "bg-[#382218] text-white/40 cursor-not-allowed"
+                    : "bg-[#FFD6BF] text-white cursor-not-allowed"
+                }`}
               >
-                <span>Keyingisi</span>
-                <ChevronRight className="w-4 h-4 stroke-[3]" />
+                Keyingisi
               </button>
+              <div className="w-32 h-1 bg-black/20 dark:bg-white/20 rounded-full mx-auto mt-2.5" />
             </div>
           </div>
         )}
 
         {/* =======================================================================
-            VIEW 2: STEP 2 - MEHMONLAR SONINI TANLASH (Figma Screen 4)
+            VIEW 2: STEP 2 - MEHMONLAR SONINI TANLASH (Figma Step 2)
            ======================================================================= */}
         {currentStep === 2 && (
-          <div className="flex-1 flex flex-col overflow-y-auto p-5 space-y-4 pb-24">
-            <div>
-              <h2 className="text-base font-bold tracking-tight">
-                Tadbiringiz uchun mehmonlar sonini tanlang
-              </h2>
-              <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                Tanlagan mehmonlar soningizga qarab to‘yxona ta‘riflari moslashtiriladi va narxlar
-                avtomatik o‘zgaradi.
-              </p>
-            </div>
+          <div className="flex-1 flex flex-col h-full overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-4 scrollbar-none">
+              <div>
+                <h2 className="text-base font-bold tracking-tight text-zinc-900 dark:text-white">
+                  Tadbiringiz uchun mehmonlar sonini tanlang
+                </h2>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1 leading-relaxed">
+                  Tanlangan mehmonlar soni asosida taklif etiladigan zal va taomnoma menyusi o'zgarishi mumkin.
+                </p>
+              </div>
 
-            <div className="space-y-3 pt-2">
-              {guestTiers.map((tier, idx) => {
-                const isSelected = selectedGuestTier === idx;
-                return (
-                  <div
-                    key={idx}
-                    onClick={() => setSelectedGuestTier(idx)}
-                    className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
-                      isSelected
-                        ? "border-[#FF6B00] bg-[#FF6B00]/5 ring-1 ring-[#FF6B00]"
-                        : isDark
-                        ? "border-white/5 bg-[#252525] hover:border-white/20"
-                        : "border-zinc-200 bg-zinc-50/50 hover:border-zinc-300"
-                    }`}
-                  >
-                    <div>
-                      <span className="text-sm font-bold block">{tier.label}</span>
-                      <span className="text-xs text-zinc-400 mt-0.5 block">
-                        Asosiy zal narxi: {tier.priceText}
-                      </span>
-                    </div>
-
+              <div className="space-y-3 pt-1">
+                {guestTiers.map((tier, idx) => {
+                  const isSelected = selectedGuestTier === idx;
+                  return (
                     <div
-                      className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                      key={idx}
+                      onClick={() => setSelectedGuestTier(idx)}
+                      className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
                         isSelected
-                          ? "border-[#FF6B00] bg-[#FF6B00] text-white"
-                          : "border-zinc-300 dark:border-white/20"
+                          ? "border-[#FF5A00] bg-[#FFF9F6] dark:bg-[#FF5A00]/10"
+                          : isDark
+                          ? "border-white/10 bg-[#252528] hover:border-white/20"
+                          : "border-zinc-200 bg-white hover:border-zinc-300"
                       }`}
                     >
-                      {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                      <div>
+                        <span className="text-sm font-bold block text-zinc-900 dark:text-white">{tier.label}</span>
+                        <span className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 block">
+                          Asosiy narx: {tier.priceText}
+                        </span>
+                      </div>
+
+                      <div
+                        className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected
+                            ? "bg-[#FF5A00] text-white shadow-sm"
+                            : "border border-zinc-300 dark:border-white/20"
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Bottom Button */}
+            {/* Bottom Button Bar */}
             <div
-              className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 border-t ${
+              className={`p-4 border-t shrink-0 z-20 ${
                 isDark ? "bg-[#1E1E1E] border-white/5" : "bg-white border-zinc-100"
               }`}
             >
               <button
                 onClick={() => setCurrentStep(3)}
-                className="w-full py-3.5 rounded-full bg-[#FF6B00] hover:bg-[#E05000] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md shadow-[#FF6B00]/25"
+                className="w-full py-3.5 sm:py-4 rounded-full bg-[#FF5A00] hover:bg-[#E05000] text-white font-bold text-sm sm:text-base text-center transition-all shadow-lg shadow-[#FF5A00]/25 active:scale-[0.99] cursor-pointer"
               >
-                <span>Keyingisi</span>
-                <ChevronRight className="w-4 h-4 stroke-[3]" />
+                Keyingisi
               </button>
+              <div className="w-32 h-1 bg-black/20 dark:bg-white/20 rounded-full mx-auto mt-2.5" />
             </div>
           </div>
         )}
 
         {/* =======================================================================
-            VIEW 3: STEP 3 - DASTURXON MAHSULOTLARINI TANLASH (Figma Screen 5)
+            VIEW 3: STEP 3 - DASTURXON MAHSULOTLARINI TANLASH (Figma Step 3)
            ======================================================================= */}
         {currentStep === 3 && (
-          <div className="flex-1 flex flex-col overflow-y-auto p-5 space-y-4 pb-28">
-            <div>
-              <h2 className="text-base font-bold tracking-tight">Dasturxon mahsulotlarini tanlang</h2>
-              <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                Dasturxon menyusi to‘yxona tomonidan taqdim etiladi. O‘zingizga ma‘qul variantni tanlang.
-              </p>
-            </div>
-
-            {/* Switch Tabs: O'zimiz tayyorlaymiz vs Tayyor dasturxon */}
-            <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/5">
-              <button
-                onClick={() => setCateringMode("custom")}
-                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                  cateringMode === "custom"
-                    ? "bg-white dark:bg-[#2A2A2A] text-zinc-900 dark:text-white shadow-sm"
-                    : "text-zinc-500"
-                }`}
-              >
-                O‘zimiz tayyorlaymiz
-              </button>
-              <button
-                onClick={() => setCateringMode("ready")}
-                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                  cateringMode === "ready"
-                    ? "bg-[#FF6B00] text-white shadow-sm"
-                    : "text-zinc-500"
-                }`}
-              >
-                Tayyor dasturxon
-              </button>
-            </div>
-
-            {cateringMode === "custom" ? (
-              <div className="p-6 rounded-2xl border text-center space-y-2 border-dashed border-zinc-300 dark:border-white/10">
-                <Utensils className="w-8 h-8 text-[#FF6B00] mx-auto" />
-                <h4 className="text-sm font-bold">Faqat zal ijarasi</h4>
-                <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-                  Dasturxon uchun mahsulotlar va taomlar buyurtmachi tomonidan taqdim etiladi.
+          <div className="flex-1 flex flex-col h-full overflow-hidden">
+            {/* Scrollable Content Body */}
+            <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-3.5 space-y-3.5 scrollbar-none">
+              <div>
+                <h2 className="text-base font-bold tracking-tight text-zinc-900 dark:text-white">
+                  Dasturxon mahsulotlarini tanlang
+                </h2>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1 leading-relaxed">
+                  Dasturxonni to‘liq to‘yxona tayyorlab berishi evaziga to‘yxona to‘loviga yana to‘lov qo‘shiladi!
                 </p>
               </div>
-            ) : (
-              /* Menu Checklist Sections */
-              <div className="space-y-3">
-                {[
-                  {
-                    cat: "Salatlar",
-                    items: [
-                      { id: "salat1", name: "Mujskoy kapriz & Sezar salati" },
-                      { id: "salat2", name: "Fransuzcha va Olivye salatlari" },
-                    ],
-                  },
-                  {
-                    cat: "Mazzali Gazaklar",
-                    items: [
-                      { id: "gazak1", name: "Go‘shtli assorti & Qazi plastinkasi" },
-                      { id: "gazak2", name: "Pishloqli assorti va ko‘katlar" },
-                    ],
-                  },
-                  {
-                    cat: "Asosiy Taomlar",
-                    items: [
-                      { id: "taom1", name: "Samarqand to‘y oshi (Devzira)" },
-                      { id: "taom2", name: "Qo‘y go‘shtidan tandir jiz" },
-                    ],
-                  },
-                  {
-                    cat: "Ichimliklar & Desert",
-                    items: [
-                      { id: "ichimlik1", name: "Tabiiy sharbatlar, kola va choy" },
-                      { id: "desert1", name: "Mavsumiy mevalar va to‘y torti" },
-                    ],
-                  },
-                ].map((section, idx) => (
+
+              {/* 2 Options (Radio Cards matching Figma 1:1) */}
+              <div className="space-y-2.5">
+                {/* Option 1: O'zimiz tayyorlaymiz */}
+                <div
+                  onClick={() => setCateringMode("custom")}
+                  className={`p-3.5 sm:p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
+                    cateringMode === "custom"
+                      ? "border-[#FF5A00] bg-[#FFF9F6] dark:bg-[#FF5A00]/10"
+                      : isDark
+                      ? "border-white/10 bg-[#252528] hover:border-white/20"
+                      : "border-zinc-200 bg-white hover:border-zinc-300"
+                  }`}
+                >
+                  <div>
+                    <h4 className="text-sm font-bold text-zinc-900 dark:text-white">O‘zimiz tayyorlaymiz</h4>
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 font-normal">
+                      Hech qanday qo‘shimcha to‘lovsiz
+                    </p>
+                  </div>
                   <div
-                    key={idx}
-                    className={`p-3.5 rounded-2xl border space-y-2 ${
-                      isDark ? "bg-[#252525] border-white/5" : "bg-zinc-50 border-zinc-200"
+                    className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                      cateringMode === "custom"
+                        ? "bg-[#FF5A00] text-white shadow-sm"
+                        : "border border-zinc-300 dark:border-white/20"
                     }`}
                   >
-                    <span className="text-xs font-bold text-[#FF6B00] block">{section.cat}</span>
-                    <div className="space-y-2">
-                      {section.items.map((item) => {
-                        const checked = menuItems[item.id];
-                        return (
-                          <div
-                            key={item.id}
-                            onClick={() => toggleMenuItem(item.id)}
-                            className="flex items-center justify-between cursor-pointer text-xs font-semibold"
-                          >
-                            <span>{item.name}</span>
-                            <div
-                              className={`w-4 h-4 rounded border flex items-center justify-center ${
-                                checked
-                                  ? "bg-[#FF6B00] border-[#FF6B00] text-white"
-                                  : "border-zinc-300 dark:border-white/20"
-                              }`}
-                            >
-                              {checked && <Check className="w-3 h-3 stroke-[3]" />}
-                            </div>
-                          </div>
-                        );
-                      })}
+                    {cateringMode === "custom" && <Check className="w-3 h-3 stroke-[3]" />}
+                  </div>
+                </div>
+
+                {/* Option 2: Tayyor dasturxon */}
+                <div
+                  onClick={() => setCateringMode("ready")}
+                  className={`p-3.5 sm:p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
+                    cateringMode === "ready"
+                      ? "border-[#FF5A00] bg-[#FFF9F6] dark:bg-[#FF5A00]/10"
+                      : isDark
+                      ? "border-white/10 bg-[#252528] hover:border-white/20"
+                      : "border-zinc-200 bg-white hover:border-zinc-300"
+                  }`}
+                >
+                  <div>
+                    <h4 className="text-sm font-bold text-zinc-900 dark:text-white">Tayyor dasturxon</h4>
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 font-normal">
+                      To‘liq servis va tayyor taomlar to‘plami
+                    </p>
+                  </div>
+                  <div
+                    className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                      cateringMode === "ready"
+                        ? "bg-[#FF5A00] text-white shadow-sm"
+                        : "border border-zinc-300 dark:border-white/20"
+                    }`}
+                  >
+                    {cateringMode === "ready" && <Check className="w-3 h-3 stroke-[3]" />}
+                  </div>
+                </div>
+              </div>
+
+              {/* Menyu tarkibi Section Header */}
+              <div className="flex items-center justify-between pt-1">
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Menyu tarkibi</h3>
+                <span className="text-[11px] font-semibold text-[#FF5A00] bg-[#FFF2EA] dark:bg-[#FF5A00]/10 px-2.5 py-1 rounded-full">
+                  Premium to‘plam
+                </span>
+              </div>
+
+              {/* 5 Distinct Menu Cards (Figma 1:1 Icons & Text) */}
+              <div className="space-y-2.5">
+                {[
+                  {
+                    icon: Utensils,
+                    label: "Salatlar",
+                    desc: "Bahor, Smakcha, Olivye (3 xil)",
+                  },
+                  {
+                    icon: Apple,
+                    label: "Mevalar",
+                    desc: "Mavsumiy mevalar va quruq mevalar",
+                  },
+                  {
+                    icon: Soup,
+                    label: "Asosiy Taomlar",
+                    desc: "Osh, Somsa, Qozon-kabob",
+                  },
+                  {
+                    icon: Wine,
+                    label: "Ichimliklar",
+                    desc: "Sharbatlar, Choy, Gazlangan suvlar",
+                  },
+                  {
+                    icon: Cake,
+                    label: "Shirinliklar",
+                    desc: "Pishiriqlar, Tort, Milliy shirinliklar",
+                  },
+                ].map((item, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-3 rounded-2xl border flex items-center gap-3.5 transition-all shadow-[0_1px_4px_rgba(0,0,0,0.02)] ${
+                      isDark
+                        ? "bg-[#252528] border-white/5 text-white"
+                        : "bg-white border-zinc-100 text-zinc-900"
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-[#FFF5EF] dark:bg-[#FF5A00]/10 text-[#FF5A00] flex items-center justify-center shrink-0">
+                      <item.icon className="w-5 h-5 stroke-[2.2]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h5 className="text-xs font-bold leading-tight truncate">{item.label}</h5>
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500 leading-tight mt-0.5 truncate">
+                        {item.desc}
+                      </p>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
+            </div>
 
-            {/* Bottom Bar with Menu Total & Next */}
+            {/* Pinned Bottom Bar (Matching Figma 1:1) */}
             <div
-              className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 border-t flex items-center justify-between gap-3 ${
-                isDark ? "bg-[#1E1E1E] border-white/5" : "bg-white border-zinc-100 shadow-lg"
+              className={`p-4 border-t shrink-0 z-20 space-y-3 ${
+                isDark
+                  ? "bg-[#1E1E1E] border-white/5"
+                  : "bg-white border-zinc-100 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]"
               }`}
             >
-              <div>
-                <span className="text-[11px] text-zinc-400 block font-medium">1 kishi uchun:</span>
-                <span className="text-sm font-extrabold text-[#FF6B00]">
-                  {cateringMode === "ready" ? "125,000 UZS" : "0 UZS"}
-                </span>
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] text-zinc-400 dark:text-zinc-500 block font-normal leading-tight">
+                    Har bir mehmon uchun
+                  </span>
+                  <span className="text-xl font-black text-[#FF5A00] tracking-tight leading-tight">
+                    125,000 UZS
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[11px] text-zinc-400 dark:text-zinc-500 block font-normal leading-tight">
+                    Umumiy qiymat
+                  </span>
+                  <span className="text-sm font-bold text-zinc-900 dark:text-white block leading-tight">
+                    {cateringMode === "ready"
+                      ? `${(guestCountAvg * cateringPerPerson).toLocaleString()} UZS`
+                      : "1,250,000 UZS"}
+                  </span>
+                  <span className="text-[11px] text-zinc-400 dark:text-zinc-500 block leading-tight">
+                    ({cateringMode === "ready" ? guestCountAvg : 10} kishi)
+                  </span>
+                </div>
               </div>
+
               <button
                 onClick={() => setCurrentStep(4)}
-                className="flex-1 max-w-[200px] py-3.5 px-6 rounded-full bg-[#FF6B00] hover:bg-[#E05000] text-white font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-[#FF6B00]/25"
+                className="w-full py-3.5 sm:py-4 rounded-full bg-[#FF5A00] hover:bg-[#E05000] text-white font-bold text-sm sm:text-base text-center transition-all shadow-lg shadow-[#FF5A00]/25 active:scale-[0.99] cursor-pointer"
               >
-                <span>Keyingisi</span>
-                <ChevronRight className="w-4 h-4 stroke-[3]" />
+                Keyingisi
               </button>
+              <div className="w-32 h-1 bg-black/20 dark:bg-white/20 rounded-full mx-auto mt-2" />
             </div>
           </div>
         )}
 
         {/* =======================================================================
-            VIEW 4: STEP 4 - BUYURTMA TAFSILOTLARI (Figma Screen 6)
+            VIEW 4: STEP 4 - REVIEW & DETAILED PRICE REPORT (Figma Screen 5 Red Box)
            ======================================================================= */}
         {currentStep === 4 && (
-          <div className="flex-1 flex flex-col overflow-y-auto p-5 space-y-4 pb-24">
-            {/* Venue Header Card */}
-            <div
-              className={`p-3 rounded-2xl border flex items-center gap-3 ${
-                isDark ? "bg-[#252525] border-white/5" : "bg-zinc-50 border-zinc-200"
-              }`}
-            >
-              <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0">
-                <img
-                  src={currentVenue.img}
-                  alt={currentVenue.name}
-                  className="w-full h-full object-cover"
-                />
+          <div className="flex-1 flex flex-col h-full overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-3.5 space-y-3.5 scrollbar-none">
+              {/* Venue Card with Header Banner */}
+              <div className="rounded-3xl border border-zinc-100 dark:border-white/5 bg-white dark:bg-[#252528] overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+                {/* Banner Image */}
+                <div className="w-full h-40 sm:h-44 relative overflow-hidden">
+                  <img
+                    src={currentVenue.img || "/images/home/top.png"}
+                    alt={currentVenue.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+
+                {/* Card Details */}
+                <div className="p-4 space-y-2">
+                  {/* Selected Venue Tag */}
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#FF5A00]">
+                    <CheckCircle className="w-3.5 h-3.5 fill-[#FF5A00] text-white" />
+                    <span>Selected Venue</span>
+                  </div>
+
+                  {/* Venue Title */}
+                  <h3 className="text-xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
+                    {currentVenue.name}
+                  </h3>
+
+                  {/* Spec Row 1: Guests */}
+                  <div className="flex items-center gap-2.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    <div className="w-5 h-5 rounded-md bg-[#FFF5EF] dark:bg-[#FF5A00]/10 text-[#FF5A00] flex items-center justify-center shrink-0">
+                      <Users className="w-3.5 h-3.5" />
+                    </div>
+                    <span>{guestTiers[selectedGuestTier].label.replace("kishi", "Distinguished Guests")}</span>
+                  </div>
+
+                  {/* Spec Row 2: Catering */}
+                  <div className="flex items-center gap-2.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    <div className="w-5 h-5 rounded-md bg-[#FFF5EF] dark:bg-[#FF5A00]/10 text-[#FF5A00] flex items-center justify-center shrink-0">
+                      <Utensils className="w-3.5 h-3.5" />
+                    </div>
+                    <span>
+                      {cateringMode === "ready"
+                        ? "Premium Gold Catering Service"
+                        : "O‘zimiz tayyorlaymiz"}
+                    </span>
+                  </div>
+
+                  {/* Modify Selection button on right */}
+                  <div className="flex justify-end pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(2)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F5F5F7] dark:bg-white/10 hover:bg-[#EBECEF] dark:hover:bg-white/15 text-zinc-600 dark:text-zinc-300 text-xs font-medium transition-all cursor-pointer"
+                    >
+                      <Pencil className="w-3 h-3 text-zinc-500 dark:text-zinc-400" />
+                      <span>Modify Selection...</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h4 className="text-sm font-bold">{currentVenue.name}</h4>
-                <p className="text-xs text-zinc-400 mt-0.5">
-                  👥 {guestTiers[selectedGuestTier].label}
-                </p>
-                <p className="text-xs text-[#16A34A] font-semibold mt-0.5">
-                  🍽️ {cateringMode === "ready" ? "Premium Gold Catering" : "Faqat zal ijarasi"}
-                </p>
+
+              {/* Section: Detailed Price Report */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-white">
+                  <Receipt className="w-4 h-4 text-[#FF5A00]" />
+                  <span>Detailed Price Report</span>
+                </div>
+
+                <div className="p-4 rounded-3xl border border-zinc-100 dark:border-white/5 bg-white dark:bg-[#252528] shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-3">
+                  {/* Hall Rental Fee */}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-zinc-900 dark:text-white">Hall Rental Fee</h4>
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5 font-normal">
+                        Full-day luxury access & staffing
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold text-zinc-900 dark:text-white">
+                      $4,500.00
+                    </span>
+                  </div>
+
+                  {/* Premium Catering */}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-zinc-900 dark:text-white">Premium Catering</h4>
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5 font-normal">
+                        {cateringMode === "ready"
+                          ? `$65.00 per guest x ${guestCountAvg}`
+                          : "Hech qanday qo‘shimcha to‘lovsiz"}
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold text-zinc-900 dark:text-white">
+                      {cateringMode === "ready" ? "$9,750.00" : "$0.00"}
+                    </span>
+                  </div>
+
+                  {/* Service & Logistics */}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-zinc-900 dark:text-white">Service & Logistics</h4>
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5 font-normal">
+                        Coordination & cleaning fees
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold text-zinc-900 dark:text-white">
+                      $1,250.00
+                    </span>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="h-px bg-zinc-100 dark:bg-white/10 my-0.5" />
+
+                  {/* Total Amount Payable */}
+                  <div className="flex items-center justify-between pt-0.5">
+                    <div>
+                      <h4 className="text-xs font-bold text-[#FF5A00]">Total Amount Payable</h4>
+                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5 font-normal">
+                        Includes all applicable taxes and fees
+                      </p>
+                    </div>
+                    <span className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">
+                      {cateringMode === "ready" ? "$15,500.00" : "$5,750.00"}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Detailed Price Report */}
+            {/* Pinned Bottom Bar (Figma Screen 5) */}
             <div
-              className={`p-4 rounded-2xl border space-y-3 ${
-                isDark ? "bg-[#252525] border-white/5" : "bg-zinc-50 border-zinc-200"
-              }`}
-            >
-              <h4 className="text-sm font-bold border-b pb-2 border-zinc-200 dark:border-white/10">
-                Detailed Price Report
-              </h4>
-
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">Hall Rental Fee (Zal ijarasi)</span>
-                  <span className="font-bold">{hallRentalFee.toLocaleString()} UZS</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">Premium Catering (Dasturxon)</span>
-                  <span className="font-bold">{cateringTotal.toLocaleString()} UZS</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">Service & Logistics (Xizmat ko‘rsatish)</span>
-                  <span className="font-bold">{serviceFee.toLocaleString()} UZS</span>
-                </div>
-
-                <div className="flex justify-between pt-2 border-t border-zinc-200 dark:border-white/10 text-sm">
-                  <span className="font-bold">Total Amount Payable</span>
-                  <span className="font-extrabold text-[#FF6B00]">
-                    {grandTotal.toLocaleString()} UZS
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Booking Details Summary */}
-            <div className="text-xs text-zinc-500 space-y-1 px-1">
-              <div>Sana: 2024-yil {selectedDate}-sentyabr, {selectedTime}</div>
-              <div>Manzil: {currentVenue.address}</div>
-            </div>
-
-            {/* Bottom Button */}
-            <div
-              className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 border-t ${
-                isDark ? "bg-[#1E1E1E] border-white/5" : "bg-white border-zinc-100"
+              className={`p-4 border-t shrink-0 z-20 ${
+                isDark
+                  ? "bg-[#1E1E1E] border-white/5"
+                  : "bg-white border-zinc-100 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]"
               }`}
             >
               <button
                 onClick={() => setCurrentStep(5)}
-                className="w-full py-3.5 rounded-full bg-[#FF6B00] hover:bg-[#E05000] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md shadow-[#FF6B00]/25"
+                className="w-full py-4 rounded-full bg-[#FF5A00] hover:bg-[#E05000] text-white font-bold text-base text-center transition-all shadow-lg shadow-[#FF5A00]/25 active:scale-[0.99] cursor-pointer"
               >
-                <span>To‘lovga o‘tish</span>
-                <ChevronRight className="w-4 h-4 stroke-[3]" />
+                Keyingisi
               </button>
+              <div className="w-32 h-1 bg-black/20 dark:bg-white/20 rounded-full mx-auto mt-2" />
             </div>
           </div>
         )}
 
         {/* =======================================================================
-            VIEW 5: STEP 5 - XAVFSIZ TO'LOV (Figma Screen 7)
+            VIEW 5: STEP 5 - XAVFSIZ TO'LOV (Figma Screen 6)
            ======================================================================= */}
         {currentStep === 5 && (
-          <div className="flex-1 flex flex-col overflow-y-auto p-5 space-y-4 pb-24">
-            <div className="text-center space-y-1">
-              <div className="w-12 h-12 rounded-full bg-[#16A34A]/10 text-[#16A34A] flex items-center justify-center mx-auto mb-2">
-                <ShieldCheck className="w-6 h-6" />
+          <div className="flex-1 flex flex-col h-full overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-5 space-y-4 scrollbar-none">
+              {/* Lock Icon */}
+              <div className="text-center space-y-1">
+                <div className="w-14 h-14 rounded-full bg-[#FFF5EF] dark:bg-[#FF5A00]/10 text-[#FF5A00] flex items-center justify-center mx-auto mb-2">
+                  <Lock className="w-6 h-6 stroke-[2.2]" />
+                </div>
+                <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                  Xavfsiz to‘lov
+                </h2>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500 max-w-xs mx-auto">
+                  To‘yxonani band qilish uchun depozit to‘lovi talab qilinadi.
+                </p>
               </div>
-              <h2 className="text-lg font-bold tracking-tight">Xavfsiz to‘lov</h2>
-              <p className="text-xs text-zinc-400">
-                To‘yxonani band qilish uchun dastlabki depozit to‘lovi talab etiladi.
-              </p>
-            </div>
 
-            {/* Deposit Box */}
-            <div
-              className={`p-4 rounded-2xl border text-center space-y-1 ${
-                isDark ? "bg-[#252525] border-white/5" : "bg-green-50/50 border-green-200"
-              }`}
-            >
-              <span className="text-xs text-zinc-500 font-medium block">Dastlabki depozit:</span>
-              <span className="text-2xl font-extrabold text-[#16A34A] block">
-                {depositAmount.toLocaleString()} so‘m
-              </span>
-              <span className="text-[10px] text-zinc-400 block">
-                (Umumiy to‘lov summasidan chegirib tashlanadi)
-              </span>
-            </div>
+              {/* Deposit Card */}
+              <div
+                className={`p-4 sm:p-5 rounded-3xl border border-[#FF5A00]/30 relative ${
+                  isDark ? "bg-[#252528]" : "bg-white shadow-[0_2px_12px_rgba(0,0,0,0.02)]"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium">Depozit miqdori</span>
+                  <span className="bg-[#FF5A00] text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                    20%
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight mt-1 mb-0.5">
+                  {depositAmount.toLocaleString()} so‘m
+                </div>
+                <span className="text-[11px] text-zinc-400 dark:text-zinc-500 block">
+                  Umumiy summadan chegirib tashlanadi
+                </span>
+              </div>
 
-            {/* Payment Method Selector */}
-            <div className="space-y-2 pt-2">
-              <span className="text-xs font-bold text-zinc-400 block">To‘lov usulini tanlang:</span>
+              {/* To'lov usuli */}
+              <div className="space-y-2.5 pt-1">
+                <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 block">
+                  To‘lov usuli
+                </span>
 
-              {[
-                { id: "card", name: "Bank kartasi", sub: "Uzcard, Humo, Visa, Mastercard" },
-                { id: "click", name: "Click Up", sub: "Tezkor to‘lov tizimi" },
-                { id: "payme", name: "Payme", sub: "Xavfsiz to‘lov" },
-              ].map((m) => {
-                const isSelected = paymentMethod === m.id;
-                return (
-                  <div
-                    key={m.id}
-                    onClick={() => setPaymentMethod(m.id as any)}
-                    className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
-                      isSelected
-                        ? "border-[#FF6B00] bg-[#FF6B00]/5 ring-1 ring-[#FF6B00]"
-                        : isDark
-                        ? "border-white/5 bg-[#252525] hover:border-white/20"
-                        : "border-zinc-200 bg-zinc-50/50 hover:border-zinc-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-zinc-200 dark:bg-white/10 flex items-center justify-center text-zinc-600 dark:text-zinc-300">
-                        <CreditCard className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold block">{m.name}</span>
-                        <span className="text-[10px] text-zinc-400 block">{m.sub}</span>
-                      </div>
-                    </div>
-
+                {[
+                  { id: "card", name: "Bank kartasi", sub: "Visa, Mastercard, Uzcard" },
+                  { id: "click", name: "Click Up", sub: "Tezkor to‘lov tizimi" },
+                  { id: "payme", name: "Payme", sub: "Xavfsiz to‘lov" },
+                ].map((m) => {
+                  const isSelected = paymentMethod === m.id;
+                  return (
                     <div
-                      className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                      key={m.id}
+                      onClick={() => setPaymentMethod(m.id as any)}
+                      className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
                         isSelected
-                          ? "border-[#FF6B00] bg-[#FF6B00] text-white"
-                          : "border-zinc-300 dark:border-white/20"
+                          ? "border-[#FF5A00] bg-[#FFF9F6] dark:bg-[#FF5A00]/10"
+                          : isDark
+                          ? "border-white/10 bg-[#252528] hover:border-white/20"
+                          : "border-zinc-200 bg-white hover:border-zinc-300"
                       }`}
                     >
-                      {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#FFF5EF] dark:bg-[#FF5A00]/10 text-[#FF5A00] flex items-center justify-center">
+                          <CreditCard className="w-5 h-5 stroke-[2]" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold block text-zinc-900 dark:text-white">{m.name}</span>
+                          <span className="text-[11px] text-zinc-400 dark:text-zinc-500 block mt-0.5">{m.sub}</span>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected
+                            ? "bg-[#FF5A00] text-white shadow-sm"
+                            : "border border-zinc-300 dark:border-white/20"
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+
+              {/* Security Note */}
+              <div className="flex items-center justify-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 pt-1">
+                <ShieldCheck className="w-4 h-4 text-[#FF5A00]" />
+                <span>Barcha to‘lovlar xavfsiz himoyalangan</span>
+              </div>
             </div>
 
             {/* Action Buttons */}
             <div
-              className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 border-t space-y-2 ${
-                isDark ? "bg-[#1E1E1E] border-white/5" : "bg-white border-zinc-100"
+              className={`p-4 border-t shrink-0 z-20 space-y-2.5 ${
+                isDark
+                  ? "bg-[#1E1E1E] border-white/5"
+                  : "bg-white border-zinc-100 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]"
               }`}
             >
               <button
                 onClick={handlePayDeposit}
                 disabled={isProcessingPayment}
-                className="w-full py-3.5 rounded-full bg-[#FF6B00] hover:bg-[#E05000] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md shadow-[#FF6B00]/25 disabled:opacity-50 cursor-pointer"
+                className="w-full py-4 rounded-full bg-[#FF5A00] hover:bg-[#E05000] text-white font-bold text-base flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-[#FF5A00]/25 disabled:opacity-50 cursor-pointer"
               >
                 {isProcessingPayment ? (
                   <>
@@ -972,82 +1208,124 @@ export default function ToyxonaFlowModal({
                     <span>To‘lov amalga oshirilmoqda...</span>
                   </>
                 ) : (
-                  <span>Depozitni to‘lash ({depositAmount.toLocaleString()} UZS)</span>
+                  <span>Depozitni to‘lash</span>
                 )}
               </button>
 
               <button
                 onClick={() => setCurrentStep(4)}
                 disabled={isProcessingPayment}
-                className="w-full py-2 text-xs font-semibold text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                className="w-full py-1 text-xs font-medium text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
               >
                 Bekor qilish
               </button>
+              <div className="w-32 h-1 bg-black/20 dark:bg-white/20 rounded-full mx-auto mt-2" />
             </div>
           </div>
         )}
 
         {/* =======================================================================
-            VIEW 6: STEP 6 - MUVAFFAQIYATLI TASDIQLASH (Figma Screen 8)
+            VIEW 6: STEP 6 - MUVAFFAQIYATLI TASDIQLASH (Figma Screen 7)
            ======================================================================= */}
         {currentStep === 6 && (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-5 animate-scale-up">
-            <div className="w-20 h-20 rounded-full bg-[#16A34A]/10 text-[#16A34A] flex items-center justify-center shadow-lg shadow-[#16A34A]/20">
-              <CheckCircle className="w-10 h-10 stroke-[2.5]" />
-            </div>
+          <div className="flex-1 flex flex-col h-full overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-4 scrollbar-none">
+              {/* Top Venue Card matching Screen 5 & 7 in Figma */}
+              <div className="rounded-3xl border border-zinc-100 dark:border-white/5 bg-white dark:bg-[#252528] overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+                <div className="w-full h-40 sm:h-44 relative overflow-hidden">
+                  <img
+                    src={currentVenue.img || "/images/home/top.png"}
+                    alt={currentVenue.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
 
-            <div className="space-y-1">
-              <h2 className="text-xl font-black tracking-tight">To‘yxona band qilindi!</h2>
-              <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-                Sizning buyurtmangiz muvaffaqiyatli qabul qilindi. Tasdiq kodi va chek profilingizga
-                yuborildi.
-              </p>
-            </div>
+                <div className="p-4 space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#FF5A00]">
+                    <CheckCircle className="w-3.5 h-3.5 fill-[#FF5A00] text-white" />
+                    <span>Selected Venue</span>
+                  </div>
+                  <h3 className="text-xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
+                    {currentVenue.name}
+                  </h3>
+                  <div className="flex items-center gap-2.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    <div className="w-5 h-5 rounded-md bg-[#FFF5EF] dark:bg-[#FF5A00]/10 text-[#FF5A00] flex items-center justify-center shrink-0">
+                      <Users className="w-3.5 h-3.5" />
+                    </div>
+                    <span>{guestTiers[selectedGuestTier].label.replace("kishi", "Distinguished Guests")}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    <div className="w-5 h-5 rounded-md bg-[#FFF5EF] dark:bg-[#FF5A00]/10 text-[#FF5A00] flex items-center justify-center shrink-0">
+                      <Utensils className="w-3.5 h-3.5" />
+                    </div>
+                    <span>
+                      {cateringMode === "ready"
+                        ? "Premium Gold Catering Service"
+                        : "O‘zimiz tayyorlaymiz"}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-            {/* Receipt Summary Card */}
-            <div
-              className={`w-full p-4 rounded-2xl border text-left space-y-2.5 text-xs ${
-                isDark ? "bg-[#252525] border-white/5" : "bg-zinc-50 border-zinc-200"
-              }`}
-            >
-              <div className="flex justify-between">
-                <span className="text-zinc-400">To‘yxona:</span>
-                <span className="font-bold">{currentVenue.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-400">Sana:</span>
-                <span className="font-bold">2024-yil {selectedDate}-sentyabr</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-400">Vaqt:</span>
-                <span className="font-bold">{selectedTime}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-400">Mehmonlar:</span>
-                <span className="font-bold">{guestTiers[selectedGuestTier].label}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-400">Paket:</span>
-                <span className="font-bold text-[#16A34A]">
-                  {cateringMode === "ready" ? "Premium Paket" : "Faqat zal"}
-                </span>
-              </div>
-              <div className="flex justify-between pt-2 border-t border-zinc-200 dark:border-white/10 font-bold">
-                <span>To‘langan depozit:</span>
-                <span className="text-[#16A34A] font-extrabold">
-                  {depositAmount.toLocaleString()} UZS
-                </span>
+              {/* Section: Buyurtma tafsilotlari (Figma Screen 7) */}
+              <div className="space-y-2.5 pt-1">
+                <div className="flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-white">
+                  <FileText className="w-4 h-4 text-[#FF5A00]" />
+                  <span>Buyurtma tafsilotlari</span>
+                </div>
+
+                <div className="p-4 sm:p-5 rounded-3xl border border-zinc-100 dark:border-white/5 bg-white dark:bg-[#252528] shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-3 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400 dark:text-zinc-500">To‘yxona nomi</span>
+                    <span className="font-bold text-zinc-900 dark:text-white">{currentVenue.name}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400 dark:text-zinc-500">Sana</span>
+                    <span className="font-bold text-zinc-900 dark:text-white">26-Oktabr, 2024</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400 dark:text-zinc-500">Sig‘imi</span>
+                    <span className="font-bold text-zinc-900 dark:text-white">
+                      {guestTiers[selectedGuestTier].label}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400 dark:text-zinc-500">Xizmat turi</span>
+                    <span className="font-bold text-zinc-900 dark:text-white">
+                      {cateringMode === "ready" ? "Premium Paket" : "Faqat zal"}
+                    </span>
+                  </div>
+
+                  <div className="h-px bg-zinc-100 dark:bg-white/10 my-1" />
+
+                  <div className="flex justify-between items-center pt-1 text-sm font-bold">
+                    <span className="text-[#FF5A00]">To‘langan depozit</span>
+                    <span className="text-[#FF5A00] font-black text-base">
+                      {depositAmount.toLocaleString()} UZS
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Return Button */}
-            <div className="w-full pt-4">
+            <div
+              className={`p-4 border-t shrink-0 z-20 ${
+                isDark
+                  ? "bg-[#1E1E1E] border-white/5"
+                  : "bg-white border-zinc-100 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]"
+              }`}
+            >
               <button
                 onClick={onClose}
-                className="w-full py-3.5 rounded-full bg-[#FF6B00] hover:bg-[#E05000] text-white font-bold text-sm shadow-md shadow-[#FF6B00]/25 active:scale-95 transition-all"
+                className="w-full py-4 rounded-full bg-[#FF5A00] hover:bg-[#E05000] text-white font-bold text-base shadow-lg shadow-[#FF5A00]/25 active:scale-95 transition-all cursor-pointer"
               >
                 Bosh sahifaga qaytish
               </button>
+              <div className="w-32 h-1 bg-black/20 dark:bg-white/20 rounded-full mx-auto mt-2" />
             </div>
           </div>
         )}
