@@ -49,7 +49,6 @@ import {
   TableBoardRow,
   StaffCountsRead,
   StaffInvitationCreated,
-  authService,
   getAccessToken,
   clearTokens,
 } from "@/lib/api";
@@ -78,6 +77,14 @@ function getFoodEmoji(name: string): string {
   if (n.includes("tort") || n.includes("shirinlik") || n.includes("desert") || n.includes("paxlava") || n.includes("muzqaymoq")) return "🍰";
   if (n.includes("sho'rva") || n.includes("mastava") || n.includes("lagman")) return "🍲";
   return "🍽️";
+}
+
+/** Hamkor sessiyasi yoki muassasasi yo'q — foydalanuvchi /login ga yo'naltiriladi */
+class PartnerSessionError extends Error {
+  constructor(public reason: "no_session" | "no_venue") {
+    super(reason);
+    this.name = "PartnerSessionError";
+  }
 }
 
 export default function AdminPage() {
@@ -199,61 +206,11 @@ export default function AdminPage() {
       }
     }
 
-    // 2. If no token or token was invalid/cleared, auto-register partner session
-    if (!token) {
-      const randomDigits = Math.floor(1000000 + Math.random() * 9000000);
-      const regRes = await authService.register({
-        phone: `+99890${randomDigits}`,
-        password: "Password123!",
-        first_name: partnerName || "Hamkor",
-        last_name: "Admin",
-      });
-      token = regRes.access_token;
-    }
-
-    // 3. Create group and branch for this partner
-    const groupRes = await partnerService.createGroupWithBranch({
-      group: {
-        name: partnerName || "Mumtoz Saroyi",
-        primary_venue_type: "restoran",
-      },
-      branch: {
-        district_id: 1,
-        street: "Amir Temur shoh ko'chasi",
-        house_number: "12",
-        latitude: 41.311081,
-        longitude: 69.279737,
-        name: partnerName || "Mumtoz Chilonzor",
-        venue_type: "restoran",
-        phone: "+998901234567",
-        total_seats: 120,
-      },
-    });
-
-    const newGroupId = groupRes.group.id;
-    const newBranch: any = groupRes.branches[0];
-    setMyGroupId(newGroupId);
-    setActiveVenueId(newBranch.id);
-    setPartnerName(newBranch.name);
-    setVenuesList([
-      {
-        id: newBranch.id,
-        group_id: newGroupId,
-        name: newBranch.name,
-        slug: newBranch.name.toLowerCase().replace(/\s+/g, "-"),
-        venue_type: "restoran",
-        phone: newBranch.phone || "+998 90 123 45 67",
-        street: newBranch.street || "Toshkent",
-        house_number: newBranch.house_number || "1",
-        status: newBranch.status,
-        total_seats: newBranch.total_seats || 120,
-      } as any,
-    ]);
-
-    await partnerService.updateVenue(newBranch.id, { status: "active" }).catch(() => null);
-
-    return { token, venueId: newBranch.id };
-  }, [partnerName]);
+    // 2. Sessiya yo'q yoki muassasa yo'q — hamkor o'zi ro'yxatdan o'tishi kerak.
+    // Avval bu yerda tasodifiy telefon va "Password123!" bilan akkaunt hamda hardcode
+    // "Mumtoz Saroyi" guruhi avtomatik yaratilardi — har bir kirish backend'da axlat qoldirardi.
+    throw new PartnerSessionError(token ? "no_venue" : "no_session");
+  }, []);
 
   const initDoneRef = React.useRef(false);
 
@@ -270,7 +227,16 @@ export default function AdminPage() {
 
     ensurePartnerSession()
       .then(() => refreshUser())
-      .catch((e) => console.error("Partner session init error:", e));
+      .catch((e) => {
+        if (e instanceof PartnerSessionError) {
+          // Hamkor akkaunti yoki muassasasi yo'q — ro'yxatdan o'tish/kirish sahifasiga
+          router.replace("/login");
+          return;
+        }
+        console.error("Partner session init error:", e);
+        showToast(e?.message || "Hamkor ma'lumotlarini yuklab bo'lmadi");
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ensurePartnerSession, user, refreshUser]);
 
   // Load venue data whenever activeVenueId or tab changes
@@ -385,21 +351,10 @@ export default function AdminPage() {
     }
     setCheckInLoading(true);
     try {
-      let res: any;
-      try {
-        res = await orderService.checkInBooking({
-          qr_token: checkInToken.trim(),
-          venue_id: activeVenueId,
-        });
-      } catch {
-        res = {
-          id: Math.floor(Math.random() * 9000) + 1000,
-          status: "checked_in",
-          checked_in_at: new Date().toISOString(),
-          guests_count: 4,
-          table_number: 4,
-        };
-      }
+      const res: any = await orderService.checkInBooking({
+        qr_token: checkInToken.trim(),
+        venue_id: activeVenueId,
+      });
 
       // Update local storage if matching booking exists
       try {
@@ -420,8 +375,10 @@ export default function AdminPage() {
       });
       showToast("Mijoz muvaffaqiyatli qabul qilindi!");
       loadVenueData();
-    } catch {
-      showToast("Check-In muvaffaqiyatli amalga oshirildi!");
+    } catch (err: any) {
+      const message = err?.message || "Chipta topilmadi yoki yaroqsiz";
+      setCheckInResult({ success: false, message, booking: null });
+      showToast(message);
     } finally {
       setCheckInLoading(false);
     }
@@ -430,11 +387,11 @@ export default function AdminPage() {
   const handleCheckOut = async (bookingId: number | string) => {
     if (!activeVenueId) return;
     try {
-      await orderService.checkOutBooking(bookingId, activeVenueId).catch(() => null);
+      await orderService.checkOutBooking(bookingId, activeVenueId);
       showToast("Mijoz tashrifi yakunlandi (Check-out)!");
       loadVenueData();
-    } catch {
-      showToast("Check-out amalga oshirildi!");
+    } catch (err: any) {
+      showToast(err?.message || "Check-out amalga oshmadi");
     }
   };
 
@@ -487,7 +444,7 @@ export default function AdminPage() {
           venue_type: newVenueType as any,
           phone: newVenuePhone.trim() || "+998 90 123 45 67",
           total_seats: Number(newVenueSeats) || 100,
-        }, currentGroupId).catch(() => null);
+        }, currentGroupId);
       } else {
         // First venue: create both Brand Group and Branch
         const groupRes = await partnerService.createGroupWithBranch({
@@ -506,7 +463,7 @@ export default function AdminPage() {
             phone: newVenuePhone.trim() || "+998 90 123 45 67",
             total_seats: Number(newVenueSeats) || 100,
           },
-        }).catch(() => null);
+        });
 
         if (groupRes?.group?.id) {
           setMyGroupId(groupRes.group.id);
@@ -514,25 +471,10 @@ export default function AdminPage() {
         createdVenue = groupRes?.branches?.[0] || null;
       }
 
-      // Fallback if network was offline
-      if (!createdVenue) {
-        createdVenue = {
-          id: Math.floor(Math.random() * 8000) + 100,
-          group_id: currentGroupId || 1,
-          name: newVenueName.trim(),
-          slug: newVenueName.trim().toLowerCase().replace(/\s+/g, "-"),
-          venue_type: newVenueType,
-          phone: newVenuePhone.trim() || "+998 90 123 45 67",
-          street: "Toshkent",
-          house_number: "1",
-          status: "active" as any,
-          total_seats: Number(newVenueSeats) || 100,
-        };
-      } else {
-        // Activate venue on backend so it appears in public catalog immediately
-        await partnerService.updateVenue(createdVenue.id, { status: "active" }).catch(() => {});
-        createdVenue.status = "active";
-      }
+      if (!createdVenue) throw new Error("Muassasa yaratilmadi. Qayta urinib ko'ring.");
+      // Activate venue on backend so it appears in public catalog immediately
+      await partnerService.updateVenue(createdVenue.id, { status: "active" }).catch(() => {});
+      createdVenue.status = "active";
 
       setVenuesList((prev) => [createdVenue as any, ...prev]);
       setActiveVenueId(createdVenue.id);
@@ -541,9 +483,9 @@ export default function AdminPage() {
       setNewVenueName("");
       setNewVenuePhone("");
       showToast("To'yxona muvaffaqiyatli qo'shildi va bazaga saqlandi!");
-    } catch {
-      showToast("To'yxona muvaffaqiyatli qo'shildi!");
-      setShowAddVenueModal(false);
+    } catch (err: any) {
+      // Modal ochiq qoladi — foydalanuvchi ma'lumotni yo'qotmaydi
+      showToast(err?.message || "Muassasani qo'shishda xatolik yuz berdi");
     }
   };
 

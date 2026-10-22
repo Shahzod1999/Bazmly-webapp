@@ -922,16 +922,14 @@ export default function LoginPage() {
       formattedPhone = "+" + formattedPhone;
 
       if (accountType === "customer") {
-        try {
-          await register({
-            phone: formattedPhone,
-            password: password.trim() || "Password123!",
-            first_name: fullName.trim() || "Foydalanuvchi",
-            last_name: "",
-          });
-        } catch (apiErr: any) {
-          console.warn("Register API notice:", apiErr);
-        }
+        // Xato bo'lsa — pastdagi catch ko'rsatadi; muvaffaqiyat faqat backend tasdiqlasa.
+        // Parol kiritilmasa yuborilmaydi (umumiy "Password123!" qo'yilmaydi).
+        await register({
+          phone: formattedPhone,
+          password: password.trim() || null,
+          first_name: fullName.trim() || "Foydalanuvchi",
+          last_name: "",
+        });
 
         setIsRegistered(true);
         setRole("customer");
@@ -956,29 +954,31 @@ export default function LoginPage() {
       if (!formattedPhone.startsWith("998")) formattedPhone = "998" + formattedPhone;
       formattedPhone = "+" + formattedPhone;
 
-      try {
-        await register({
-          phone: formattedPhone,
-          password: password.trim() || "Partner123!",
-          first_name: venueName.trim(),
-          last_name: "Hamkor",
-        });
-      } catch (err) {
-        console.warn("Partner register fallback:", err);
+      if (!password.trim()) {
+        throw new Error("Hamkor akkaunti uchun parol kiriting");
+      }
+      if (!selectedPartnerDistrictId) {
+        throw new Error("Viloyat va tumanni tanlang");
       }
 
-      try {
-        await partnerService.createVenue({
-          name: venueName.trim(),
-          venue_type: accountType === "restaurant" ? "restoran" : "toyxona",
-          street: reg || "Toshkent",
-          house_number: dist || "Markaz",
-          district_id: selectedPartnerDistrictId || 1,
-          latitude: 41.2995,
-          longitude: 69.2401,
-          phone: formattedPhone,
-        });
-      } catch {}
+      await register({
+        phone: formattedPhone,
+        password: password.trim(),
+        first_name: venueName.trim(),
+        last_name: "Hamkor",
+      });
+
+      // TODO: koordinata hozircha Toshkent markazi — manzilni xaritadan tanlash qo'shilishi kerak
+      await partnerService.createVenue({
+        name: venueName.trim(),
+        venue_type: accountType === "restaurant" ? "restoran" : "toyxona",
+        street: reg || "Toshkent",
+        house_number: dist || "Markaz",
+        district_id: selectedPartnerDistrictId,
+        latitude: 41.2995,
+        longitude: 69.2401,
+        phone: formattedPhone,
+      });
 
       setIsRegistered(true);
       setRole("partner");
@@ -987,8 +987,11 @@ export default function LoginPage() {
 
       showToast("Ro'yxatdan muvaffaqiyatli o'tdingiz!");
       router.push("/admin");
-    } catch {
-      router.push("/admin");
+    } catch (err: any) {
+      // Avval xato bo'lsa ham /admin ga yuborilardi — u yerda soxta akkaunt yaratilardi
+      const message = err?.message || "Ro'yxatdan o'tishda xatolik yuz berdi";
+      setError(message);
+      showToast(message);
     } finally {
       setLoading(false);
     }

@@ -301,46 +301,8 @@ function BookingContent({ id }: { id: string }) {
           contact_phone: phoneNumber,
         };
 
-        try {
-          detailRes = await bookingService.bookHall(hallPayload);
-        } catch {
-          detailRes = {
-            booking: {
-              id: Math.floor(Math.random() * 9000) + 1000,
-              user_id: user?.id || 1,
-              venue_id: Number(id),
-              table_id: null,
-              kind: "hall",
-              status: "confirmed",
-              booking_date: bookingDateStr,
-              start_time: selectedTime,
-              end_time: endTimeStr,
-              guests_count: guests,
-              contact_name: fullName,
-              contact_phone: phoneNumber,
-              note: null,
-              subtotal: String(cartTotal),
-              deposit_amount: String(finalTotal),
-              total_amount: String(finalTotal),
-              currency: "UZS",
-              receipt_number: `RCP-${Math.floor(Math.random() * 899999 + 100000)}`,
-              ticket_code: `0789 ${Math.floor(Math.random() * 899999 + 100000)}`,
-              guest_tier_id: null,
-              auto_cancel_at: null,
-              confirmed_at: new Date().toISOString(),
-              checked_in_at: null,
-              checked_out_at: null,
-              seated_minutes: null,
-              cancelled_at: null,
-              completed_at: null,
-            },
-            qr_token: `BZMLY-${Number(id)}-${Date.now()}`,
-            venue_name: venueName,
-            items: [],
-            services: [],
-            price_lines: [],
-          };
-        }
+        // Xato bo'lsa — pastdagi catch foydalanuvchiga ko'rsatadi. Soxta bron yaratilmaydi.
+        detailRes = await bookingService.bookHall(hallPayload);
       } else {
         const tablePayload = {
           venue_id: Number(id),
@@ -353,46 +315,8 @@ function BookingContent({ id }: { id: string }) {
           contact_phone: phoneNumber,
         };
 
-        try {
-          detailRes = await bookingService.bookTable(tablePayload);
-        } catch {
-          detailRes = {
-            booking: {
-              id: Math.floor(Math.random() * 9000) + 1000,
-              user_id: user?.id || 1,
-              venue_id: Number(id),
-              table_id: selectedTable,
-              kind: "table",
-              status: "confirmed",
-              booking_date: bookingDateStr,
-              start_time: selectedTime,
-              end_time: endTimeStr,
-              guests_count: guests,
-              contact_name: fullName,
-              contact_phone: phoneNumber,
-              note: null,
-              subtotal: String(cartTotal),
-              deposit_amount: String(finalTotal),
-              total_amount: String(finalTotal),
-              currency: "UZS",
-              receipt_number: `RCP-${Math.floor(Math.random() * 899999 + 100000)}`,
-              ticket_code: `0789 ${Math.floor(Math.random() * 899999 + 100000)}`,
-              guest_tier_id: null,
-              auto_cancel_at: null,
-              confirmed_at: new Date().toISOString(),
-              checked_in_at: null,
-              checked_out_at: null,
-              seated_minutes: null,
-              cancelled_at: null,
-              completed_at: null,
-            },
-            qr_token: `BZMLY-${Number(id)}-${Date.now()}`,
-            venue_name: venueName,
-            items: [],
-            services: [],
-            price_lines: [],
-          };
-        }
+        // Xato bo'lsa — pastdagi catch foydalanuvchiga ko'rsatadi. Soxta bron yaratilmaydi.
+        detailRes = await bookingService.bookTable(tablePayload);
       }
 
       setCreatedBookingDetail(detailRes);
